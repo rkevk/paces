@@ -9,6 +9,7 @@ The structure for existing calculations has been similar to: `adaptive_results/v
 - `G_COUPL` is the electron-phonon coupling strength times ten, as an integer,
 - `DELTA_EPS` is the tilt parameter times a power of ten, as an integer,
 - and `coherence` stands for the `coherence` method of weighting basis states.
+
 This structure is by no means mandatory and can be changed as desired.
 
 As an example, we assume you are located in the directory containing this `README.md` and say we want to store our files in `../adaptive_results/vib_gendatseg/post_n25_d64_g20_delta_eps100_coherence`.

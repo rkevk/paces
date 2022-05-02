@@ -1,6 +1,11 @@
 # lazy_holstein, or:
 ## Parallelized Multi-Step Dynamically Adapted (ParMuDA) basis set method for quantum dynamics
 
+## Initial (one-time) setup:
+Copy `device_config_template.py` to `device_config.py` and make necessary changes according to your system setup (number of GPUs, memory).
+`device_config.py` and any changes made to it will not be synced via git.
+
+## Per-calculation setup:
 Before starting a calculation, first create a suitable subdirectory structure to store the data in.
 The structure for existing calculations has been similar to: `adaptive_results/vib_gendatseg/${SIGN}t_n${NUMSITES}_d${DIM_HO}_g${G_COUPL}_delta_eps${DELTA_EPS}_coherence`, where 
 - `SIGN` is the sign of the dipole-dipole interaction (`pos` or `neg`),

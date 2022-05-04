@@ -45,12 +45,13 @@ fillfac             = 0.3
 t_array             = numpy.arange(0.00, 50.05, 0.05)
 observables         = ["n_b", "H", "diagnostics"]
 
+dirname             = "../adaptive_results/vib_gendatseg/negt_n%i_d%i_g%02i_coherence" % (nchain, max_HO_dim, int(coupling_g*10))
 
 with vector_device:
 
     HamObj  = lazy_holstein_model(nchain=nchain, max_HO_dims=[max_HO_dim,]*nchain, eps_sys=eps_sys, t_sys=t_sys, eps_bath=omega, delta_eps=delta_eps, coupling_g=coupling_g, maxstates=maxstates, periodic=False, search_mindiff=32, wordsize=32)
 
-    te	= time_evolution(HamObj, dirname="../adaptive_results/vib_gendatseg/negt_n%i_d%i_g%02i_coherence" % (nchain, HO_dim, int(g*10)), verbose=True, m_star=100, debug_verb=6, shuffle_seed=shuffle_seed, U_weighting_method=U_weighting_method)
+    te	= time_evolution(HamObj, dirname=dirname, verbose=True, m_star=100, debug_verb=6, shuffle_seed=shuffle_seed, U_weighting_method=U_weighting_method)
 
 #    te.create_nonuniform_basis([1,] * ((nchain-9)//2) + [1,2,4,15,50,15,4,2,1] + [1,] * ((nchain-9)//2), minpos=max(initpos-25, 0), maxpos=min(initpos+25, nchain))
     te.create_nonuniform_basis([1,]*nchain, minpos=initpos, maxpos=initpos+1)

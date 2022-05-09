@@ -26,12 +26,13 @@ else:
     print("    Using two GPUs.")
 
 if use_unified_mem:
-    mempool = cupy.get_default_memory_pool()
-    print("    Using default (GPU-based) memory pool.")
-else:
     mempool = cupy.cuda.MemoryPool(cupy.cuda.memory.malloc_managed) # get unified pool
     cupy.cuda.set_allocator(mempool.malloc) # set unified pool as default allocator
     mempool.set_limit(size=memsize_bytes)
     print("    Using unified (hybrid CPU/GPU) memory pool with limit set to %1.1f GiB." % (memsize_bytes/1024**3))
+else:
+    mempool = cupy.get_default_memory_pool()
+    print("    Using default (GPU-based) memory pool.")
 
+    
 print("#########    end of setup    #########\n")

@@ -14,6 +14,8 @@ whoami_device   = cupy.cuda.Device(0)       # change current device: DO NOT USE 
 vector_device   = cupy.cuda.Device(0)
 memsize_bytes   = 63*1024**3
 
+use_unified_mem = False
+
 ################################################################
 # Do not change anything in the remainder of the file:
 ################################################################
@@ -23,7 +25,7 @@ if vector_device == whoami_device:
 else:
     print("    Using two GPUs.")
 
-if True:
+if use_unified_mem:
     mempool = cupy.get_default_memory_pool()
     print("    Using default (GPU-based) memory pool.")
 else:

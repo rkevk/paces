@@ -40,6 +40,16 @@ def cartesian_product(*arrays):
     return arr.reshape(-1, la)
 
 
+def format_function_args(frame, start_time=None):
+    if start_time is None:
+        start_time  = time.time()
+    args, _, _, values  = inspect.getargvalues(frame)
+    arg_list            = [(str(i) + "=" + str(values[i])) for i in args if str(i) != "self"]
+    fname               = frame.f_code.co_name
+    return ("\nFunction call at %f:\n   %s(" % (fname, start_time)) + ', '.join(arg_list) + ")\n"
+
+
+
 ###################################################################################################################################################################################
 
 
@@ -725,10 +735,7 @@ class time_evolution:
         if self.HamObj.nchain * truncate_d**self.HamObj.nchain > self.HamObj.maxstates:
             raise ValueError("Number of states that would result from this value of truncate_d exceeds maxstates!")
         # print current basis creation to file
-        frame = inspect.currentframe()
-        args, _, _, values = inspect.getargvalues(frame)
-        arg_list = [(str(i) + "=" + str(values[i])) for i in args if str(i) != "self"]
-        header = ("\nFunction call at %f: create_uniform_truncated_basis(" % function_start_time) + ', '.join(arg_list) + ")\n"
+        header = format_function_args(inspect.currentframe(), function_start_time)
         with open(self.params_file, 'a') as params_file:
             params_file.write(header)
         raw_whoami      = self.use_module.asarray(cartesian_product(numpy.arange(self.HamObj.nchain, dtype=numpy.uint8), *(numpy.arange(truncate_d, dtype=numpy.uint8) * numpy.ones(self.HamObj.nchain, dtype=numpy.uint8)[None].T)))
@@ -761,10 +768,7 @@ class time_evolution:
             raise ValueError("Invalid minpos or maxpos.")
 
         # print current basis creation to file
-        frame = inspect.currentframe()
-        args, _, _, values = inspect.getargvalues(frame)
-        arg_list = [(str(i) + "=" + str(values[i])) for i in args if str(i) != "self"]
-        header = ("\nFunction call at %f: create_nonuniform_basis(" % function_start_time) + ', '.join(arg_list) + ")\n"
+        header = format_function_args(inspect.currentframe(), function_start_time)
         with open(self.params_file, 'a') as params_file:
             params_file.write(header)
 
@@ -798,10 +802,7 @@ class time_evolution:
         if maxval >= self.HamObj.max_HO_dims_v.max():
             raise ValueError("Specified basis truncation value exceeds the maximal max_HO_dims.")
         # print current basis creation to file
-        frame = inspect.currentframe()
-        args, _, _, values = inspect.getargvalues(frame)
-        arg_list = [(str(i) + "=" + str(values[i])) for i in args if str(i) != "self"]
-        header = ("\nFunction call at %f: create_moving_gaussian_OBC_basis(" % function_start_time) + ', '.join(arg_list) + ")\n"
+        header = format_function_args(inspect.currentframe(), function_start_time)
         with open(self.params_file, 'a') as params_file:
             params_file.write(header)
         def gauss(x, mu, sigma):
@@ -846,10 +847,7 @@ class time_evolution:
             raise ValueError("Loaded basis set does not match the wordsize as given by HamObj construction.")
 
         # print current basis creation to file
-        frame = inspect.currentframe()
-        args, _, _, values = inspect.getargvalues(frame)
-        arg_list = [(str(i) + "=" + str(values[i])) for i in args if str(i) != "self"]
-        header = ("\nFunction call at %f: load_basis_from_file(" % function_start_time) + ', '.join(arg_list) + ")\n"
+        header = format_function_args(inspect.currentframe(), function_start_time)
         with open(self.params_file, 'a') as params_file:
             params_file.write(header)
 
@@ -865,16 +863,12 @@ class time_evolution:
         n_max:      The maximum number of enlargement iterations to perform
         fillfac:    The proportion of maxstates to use up
         """
-        function_start_time = time.time()
         if self.verbose:
             print("Growing initial basis set...", end=' ')
             sys.stdout.flush()
 
         # print current basis creation to file
-        frame = inspect.currentframe()
-        args, _, _, values = inspect.getargvalues(frame)
-        arg_list = [(str(i) + "=" + str(values[i])) for i in args if str(i) != "self"]
-        header = ("\nFunction call at %f: grow_optimal_basis(" % function_start_time) + ', '.join(arg_list) + ")\n"
+        header = format_function_args(inspect.currentframe())
         with open(self.params_file, 'a') as params_file:
             params_file.write(header)
 
@@ -1178,13 +1172,9 @@ class time_evolution:
         use_U_weight_delta_t:   float, the delta_t to use for the forward-looking part of the Hilbert subspace determination. 0 disables forward-looking.
         enlarge_steps:          int, the number of additional matrix elements to incorporate when determining the next Hilbert subspace. 0 takes only directly interacting basis states, 1 adds indirect interactions via 1 intermediate, 2 via 2 etc.
         """
-        function_start_time = time.time()
         if self.verbose:
             print("Setting up generate_timeline function...")
-        frame = inspect.currentframe()
-        args, _, _, values = inspect.getargvalues(frame)
-        arg_list = [(str(i) + "=" + str(values[i])) for i in args if str(i) != "self"]
-        header = ("\nFunction call at %f: generate_timeline(" % function_start_time) + ', '.join(arg_list) + ")\n"
+        header = format_function_args(inspect.currentframe())
         with open(self.params_file, 'a') as params_file:
             params_file.write(header)
 

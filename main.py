@@ -49,7 +49,7 @@ dirname             = "../adaptive_results/vib_gendatseg/negt_n%i_d%i_g%02i_cohe
 
 with vector_device:
 
-    HamObj  = lazy_holstein_model(nchain=nchain, max_HO_dims=[max_HO_dim,]*nchain, eps_sys=eps_sys, t_sys=t_sys, eps_bath=omega, delta_eps=delta_eps, coupling_g=coupling_g, maxstates=maxstates, periodic=False, search_mindiff=32, wordsize=32)
+    HamObj  = HamiltonianObject(nchain=nchain, max_HO_dims=[max_HO_dim,]*nchain, eps_sys=eps_sys, t_sys=t_sys, eps_bath=omega, delta_eps=delta_eps, coupling_g=coupling_g, maxstates=maxstates, periodic=False, search_mindiff=32, wordsize=32)
 
     te	= time_evolution(HamObj, dirname=dirname, verbose=True, m_star=100, debug_verb=6, shuffle_seed=shuffle_seed, U_weighting_method=U_weighting_method)
 

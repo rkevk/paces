@@ -29,7 +29,24 @@ from device_config import *
 if numpy.uintc != numpy.uint32:
     raise TypeError("Well well well, who's working on a non-64 bit system? This code will explode if run on a system whose integer size is not 32 bits.")
 
+
 ###################################################################################################################################################################################
+
+###################################
+# global variables:
+###################################
+# the following are debug verbosity levels, nothing critical:
+searchsorted_timing_level       = 999
+simple_taylor_level             = 6
+move_data_timing_level          = 4
+mem_info_level                  = 4
+
+
+###################################################################################################################################################################################
+
+###################################
+# global (mostly helper) functions:
+###################################
 
 def cartesian_product(*arrays):
     la = len(arrays)
@@ -49,22 +66,18 @@ def format_function_args(frame, start_time=None):
     return ("\nFunction call at %f:\n   %s(" % (fname, start_time)) + ', '.join(arg_list) + ")\n"
 
 
+def print_searchsorted_timing(verb, delta_t, size1, size2):
+    if verb > searchsorted_timing_level:
+        print("This application of searchsorted took %f ms (arg sizes %i, %i)." % (delta_t*1000, size1, size2))
+
+def write_params(fname, obj, itemstr):
+    try:
+        value   = getattr(getattr(obj, itemstr), "__name__")
+    except AttributeError:
+        value   = getattr(obj, itemstr)
+    fname.write(itemstr + " = " + str(value) + '\n')
 
 ###################################################################################################################################################################################
-
-
-###################################
-# global variables:
-###################################
-# the following are debug verbosity levels, nothing critical:
-searchsorted_timing_level       = 999
-simple_taylor_level             = 6
-move_data_timing_level          = 4
-mem_info_level                  = 4
-
-
-###################################################################################################################################################################################
-
 
 class phonon_rdm_funcs:
     def __init__(self, HamObj):
@@ -119,21 +132,14 @@ class phonon_rdm_funcs:
 
 ###################################################################################################################################################################################
 
-
-class lazy_holstein_model:
-    def __init__(self, nchain, eps_sys, t_sys, eps_bath, coupling_g, periodic, maxstates, max_HO_dims, delta_eps=0, verbose=True, use_complex_type=numpy.complex128, use_module=cupy, debug_verb=0, search_mindiff=32, wordsize=32):
+class HilbertSkeleton:
+    def __init__(self, nchain, periodic, maxstates, max_HO_dims, use_complex_type=numpy.complex128, use_module=cupy, debug_verb=0, search_mindiff=32, wordsize=32):
         if not ("vector_device" in globals() and "whoami_device" in globals()):
-            raise NameError("The CUDA devices to be used must be defined as global variables.\n\tIf you are importing lazy_holstein as a module, then set lazy_holstein.xxxxxx_device = cupy.cuda.Device(i).")
+            raise NameError("The CUDA devices to be used must be defined as global variables (check file device_config.py)")
         if cupy.cuda.Device() != vector_device:
             raise ValueError("This class expects to be instantiated while vector_device is current.")
         self.use_module     = use_module
         self.nchain         = nchain
-        self.eps_sys        = eps_sys
-        self.t_sys          = t_sys
-        self.eps_bath       = eps_bath
-        self.coupling_g     = coupling_g
-        self.delta_eps      = delta_eps         # this is the tilt in the excitonic potential energy
-        self.verbose        = verbose
         self.complex_type   = use_complex_type
         self.periodic       = bool(periodic)
         self.maxstates      = maxstates
@@ -145,10 +151,6 @@ class lazy_holstein_model:
         with whoami_device:
             self.max_HO_dims_w  = self.use_module.asarray(max_HO_dims)
 
-        if self.periodic:
-            self.hopnum         = self.nchain
-        else:
-            self.hopnum         = self.nchain - 1
         if self.wordsize not in (8, 16, 32, 64):
             raise ValueError("The specified wordsize (%i) is illegal." % self.wordsize)
         if self.max_HO_dims_v.max() > 2**self.wordsize:
@@ -171,14 +173,6 @@ class lazy_holstein_model:
             raise NotImplementedError("Chain lengths requiring more than 16 bits to store (N > 65536) are not yet implemented.")
         if self.periodic:
             raise NotImplementedError("Periodic boundary conditions should not be considered correctly implemented yet.")
-
-
-    def print_searchsorted_timing(self, delta_t, size1, size2):
-        if self.debug_verb > searchsorted_timing_level:
-            print("This application of searchsorted took %f ms (arg sizes %i, %i)." % (delta_t*1000, size1, size2))
-            return
-        else:
-            return
 
 
     def searchsorted(self, phonebook, findme, allow_escapes=False):
@@ -364,6 +358,145 @@ class lazy_holstein_model:
         elif arr.device == whoami_device:
             cupy_gendatseg_kernels.rem_phonon_at_exc(arr, self.posbitwidth, self.QHObitwidth_w, self.wordsize)
 
+
+###################################################################################################################################################################################
+
+class HamiltonianTerms(HilbertSkeleton):
+    """
+    Partially user-exposed object containing a collection of Hamiltonian-generating functions that can be combined to yield the total Hamiltonian.
+    Each function must take exactly two inputs, basis_states and raw_map_to—where the latter is used for growing the Hilbert space—
+        and return (melpack, debug_info), where melpack must be of the form ((plus_inds, plus_vals, plus_mask), o_star_mask, (minus_inds, minus_vals, minus_mask)). debug_info can be None.
+    The terms that shall be used in a given calculation are specified via use_terms.
+    """
+    def __init__(self, use_terms, eps_sys, t_sys, eps_bath, coupling_g, delta_eps=0, **kwargs):
+        super().__init__(**kwargs)
+        self.eps_sys        = eps_sys
+        self.t_sys          = t_sys
+        self.eps_bath       = eps_bath
+        self.coupling_g     = coupling_g
+        self.delta_eps      = delta_eps         # this is the tilt in the excitonic potential energy
+        self.use_terms      = use_terms         # this is a list of strings specifying which terms to include
+
+        if self.periodic:
+            self.hopnum         = self.nchain
+        else:
+            self.hopnum         = self.nchain - 1
+
+    ###################################
+    # generate hopping matrix elements
+    # general, private version first
+    ###################################
+    def _generate_mel_hopping(self, basis_states, t_sys, order=1, raw_map_to=False):   # basis_states does not have to be sorted for this to work
+        if order < 1 or order > self.nchain:
+            raise ValueError("Invalid value for order of hopping operator.")
+        excpos  = self.get_pos(basis_states)
+
+        # generate the plus side of the hopping (= to the right):
+        plus_inds               = basis_states.copy()
+        self.add_n_to_pos(plus_inds, order)
+        if self.periodic:
+            raise NotImplementedError("Periodic hopping not yet implemented.")
+        else:         ### for OBC, remove boundary excursions:
+            plus_mask               = excpos < self.nchain - order  # remove the ones that began to the right of site (nchain - order - 1)
+
+        # generate the minus side of the coupling (= to the left):
+        if not raw_map_to:
+            # generate a mask to remove values that occur in both the input and plus_inds:
+            o_star_mask             = self._generate_o_star_mask(basis_states, plus_inds, plus_mask)
+        else:
+            o_star_mask             = slice(None)
+
+        minus_inds              = basis_states[o_star_mask].copy()
+        self.add_n_to_pos(minus_inds, -order)
+        if self.periodic:
+            raise NotImplementedError("Periodic hopping not yet implemented.")
+        else:         ### for OBC, remove boundary excursions:
+            minus_mask              = excpos[o_star_mask] > order - 1  # remove the ones that began to the left of site (order-1)
+
+        if raw_map_to:
+            return plus_inds[plus_mask], minus_inds[minus_mask]
+
+        # generate the values of the matrix elements:
+        minus_vals              = numpy.conj(t_sys)
+        plus_vals               = t_sys
+        return ((plus_inds, plus_vals, plus_mask), o_star_mask, (minus_inds, minus_vals, minus_mask),), None
+
+
+    ###################################
+    # generate hopping matrix elements
+    # wrappers for first- and second-order
+    ###################################
+    def generate_mel_hopping(self, basis_states, raw_map_to=False):   # basis_states does not have to be sorted for this to work
+        return _generate_mel_hopping(self, basis_states, self.t_sys, order=1, raw_map_to)
+
+    def generate_mel_hopping2(self, basis_states, raw_map_to=False):   # basis_states does not have to be sorted for this to work
+        return _generate_mel_hopping(self, basis_states, self.t_sys2, order=2, raw_map_to)
+
+
+    ###################################
+    # generate vibronic coupling matrix elements
+    ###################################
+    def generate_mel_coupling(self, basis_states, raw_map_to=False):
+        max_HO_dims     = self.max_HO_dims_v if basis_states.device == vector_device else self.max_HO_dims_w
+        phonon_occs     = self.get_phonon_at_exc(basis_states)
+        excpos          = self.get_pos(basis_states)
+
+        # generate the plus side of the coupling:
+        plus_inds               = basis_states.copy()
+        self.add_phonon_at_exc(plus_inds)
+        # add mask for ceiling hits:
+        plus_mask               = phonon_occs < max_HO_dims[excpos] - 1
+
+        # generate the minus side of the coupling:
+        if not raw_map_to:
+            ceiling_hits            = (len(basis_states) - plus_mask.sum())
+
+            # generate a mask to remove values that occur in both the input and plus_inds:
+            o_star_mask             = self._generate_o_star_mask(basis_states, plus_inds, plus_mask)
+        else:
+            o_star_mask             = slice(None)
+
+        minus_inds              = basis_states[o_star_mask].copy()
+        self.rem_phonon_at_exc(minus_inds)
+        minus_mask              = phonon_occs[o_star_mask] > 0
+
+        if raw_map_to:
+            return plus_inds[plus_mask], minus_inds[minus_mask]
+
+        # generate the values of the matrix elements:
+        plus_vals               = self.coupling_g * self.use_module.sqrt(phonon_occs+1, dtype=cupy.float64)
+        minus_vals              = numpy.conj(self.coupling_g) * self.use_module.sqrt(phonon_occs[o_star_mask], dtype=cupy.float64)
+
+        return ((plus_inds, plus_vals, plus_mask), o_star_mask, (minus_inds, minus_vals, minus_mask),), ceiling_hits
+
+    ###################################
+    # generate diagonal elements
+    ###################################
+    def generate_diag_vals(self, basis_states):
+        diag_vals   = self.eps_sys + self.eps_bath * self.sum_all_phonons(basis_states)
+        if self.delta_eps != 0:
+            diag_vals   += self.delta_eps * self.get_pos(basis_states)
+        return diag_vals
+
+    ###################################
+    # generate generate a mask to remove values that occur in both the input inds and plus_inds
+    # (general helper function, not to be modified)
+    ###################################
+    def _generate_o_star_mask(basis_states, plus_inds, plus_mask):
+        t0 = time.time()
+        mpluind     = plus_inds[plus_mask]
+        sortplus    = mpluind[cupy.lexsort(mpluind.T[::-1])]
+        del mpluind
+        o_star_mask = cupy.any(sortplus[self.searchsorted(sortplus, basis_states, allow_escapes=True)] != basis_states, axis=1)
+        if self.debug_verb > searchsorted_timing_level:
+            t1 = time.time()
+            print("This application of (sorting +) searchsorted (+ masking) took %f ms (arg sizes %i, %i)." % ((t1-t0)*1000, sortplus.shape[0], basis_states.shape[0]))
+        return o_star_mask
+
+
+###################################################################################################################################################################################
+
+class HamiltonianObject(HamiltonianTerms):
     ###################################
     # wrapper function for Hamiltonian generation
     ###################################
@@ -374,70 +507,78 @@ class lazy_holstein_model:
             raise ValueError("Basis states do not match the number of bits specified at initialization.")
         for i in range(enlarge_steps):
             basis_states = self.enlarge_basis_set(basis_states)
-        plus_hop_triple, hop_o_star, minus_hop_triple                       = self.generate_mel_hopping(basis_states)
-        if self.debug_verb > 2:
-            print("    b.1: Determined hopping indices.")
-        plus_coupl_triple, coupl_o_star, minus_coupl_triple, ceiling_hits   = self.generate_mel_coupling(basis_states)
-        if self.debug_verb > 2:
-            print("    b.2: Determined coupling indices.")
 
-        ### Diagonal terms shall include the new terms! :
-        lenlist     = [basis_states.shape[0],]
-        for item in [plus_hop_triple, minus_hop_triple, plus_coupl_triple, minus_coupl_triple]:
-            if item[2] is True:
-                lenlist += [item[0].shape[0],]
-            else:
-                lenlist += [int(item[2].sum()),]
-        all_inds    = cupy.empty((sum(lenlist), basis_states.shape[1]), dtype=self.dtype)
-        start       = 0
-        for i, item in enumerate([(basis_states, 0, True), plus_hop_triple, minus_hop_triple, plus_coupl_triple, minus_coupl_triple]):
-            if item[2] is True:
-                all_inds[start:start+lenlist[i]]    = item[0]
-            else:
-                all_inds[start:start+lenlist[i]]    = item[0][item[2]]                
-            start                               += lenlist[i]
-        if start != sum(lenlist):
+        # Generate the various non-diagonal matrix elements:
+        melpack_dict    = {}
+        debug_dict      = {}
+        len_dict        = {}
+        totallen        = basis_states.shape[0]
+        for i, term in enumerate(self.use_terms):
+            melpack, debug_dict[term]   = getattr(self, "generate_mel_" + term)(basis_states)
+            len1, len2                  = int(melpack[0][2].sum()), int(melpack[2][2].sum())
+            len_dict[term]              = [len1, len2]
+            melpack_dict[term]          = melpack
+            totallen                    += len1 + len2
+            if self.debug_verb > 2:
+                print("    b.%i: Determined %s indices." % (i+1, term))
+#                if item[2] in (Ellipsis, slice(None), True):
+#                    lenlist += [item[0].shape[0],]
+
+        try: 
+            ceiling_hits = debug_dict["hopping"]
+            ceiling_hits += debug_dict["hopping2"]
+        except KeyError:
+            pass
+
+        # Now create a new array to hold all of the new indices:
+        all_inds                            = cupy.empty((totallen, basis_states.shape[1]), dtype=self.dtype)
+
+        # Start filling in all the indices, starting with the diagonal terms:
+        all_inds[:basis_states.shape[0]]    = basis_states
+        start                               = basis_states.shape[0]
+
+        for term, (plus_triple, o_star, minus_triple) in melpack_dict.items():
+            thislen                             = len_dict[term]
+            midp                                = start+thislen[0]
+            all_inds[start:midp]                = plus_triple[0][plus_triple[2]]
+            all_inds[midp:midp+thislen[1]]      = minus_triple[0][minus_triple[2]]
+#                if item[2] in (Ellipsis, slice(None), True):
+#                    all_inds[start:start+lenlist[i]]    = item[0]
+            start   += sum(thislen)
+
+        if start != totallen:
             raise ValueError("Fatal error that I shall not further specify because I want to annoy you.")
 
+        # Remove duplicates within the new indices:
         new_inds        = self.cupy_unique(all_inds)
 
         if self.debug_verb > 2:
-            print("    b.3: Determined new whoami array.")
+            print("    b.%i: Determined new whoami array." % (len(self.use_terms) + 1))
 
-        diag_vals   = self.eps_sys + self.eps_bath * self.sum_all_phonons(new_inds)
-        if self.delta_eps != 0:
-            diag_vals   += self.delta_eps * self.get_pos(new_inds)
-
+        diag_vals   = self.generate_diag_vals(new_inds)
         if self.debug_verb > 2:
             print("    Number of diag vals: %i" % diag_vals.shape[0])
 
         ### Now convert these indices into the dense vector indices:
         # (the diagonal elements are already given)
-#        if len(new_inds) < 2**16:
-#            dtype       = self.use_module.uint16
         dtype       = self.use_module.uint32
         if len(new_inds) >= 2**32:
             raise ValueError("The indexing array is too long to be stored in a 32-bit number format.")
-#        elif len(new_inds) < 2**64:
-#            dtype       = self.use_module.uint64
 
         t0 = time.time()
         basis_lookup    = self.searchsorted(new_inds, basis_states)
-        self.print_searchsorted_timing(time.time() - t0, new_inds.shape[0], basis_states.shape[0])
+        print_searchsorted_timing(self.debug_verb, time.time() - t0, new_inds.shape[0], basis_states.shape[0])
 
-        hopping_vals, (hop_to, hop_from)    = self.fill_in_param_arrays(new_inds, basis_lookup, lenlist[1], lenlist[2], plus_hop_triple, minus_hop_triple, hop_o_star, dtype)
-        if self.debug_verb > mem_info_level:
-            print("Near-maximal memory usage on whoami_device, est. 1: %1.1f MiB" % (cupy.get_default_memory_pool().used_bytes()/1024**2))
-        del plus_hop_triple, minus_hop_triple
-
-        coupl_vals, (coupl_to, coupl_from)  = self.fill_in_param_arrays(new_inds, basis_lookup, lenlist[3], lenlist[4], plus_coupl_triple, minus_coupl_triple, coupl_o_star, dtype)
-        if self.debug_verb > mem_info_level:
-            print("Near-maximal memory usage on whoami_device, est. 2: %1.1f MiB" % (cupy.get_default_memory_pool().used_bytes()/1024**2))
-        del plus_coupl_triple, minus_coupl_triple
-
+        # Based on the newly determined unique set of indices, convert the existing melpacks into the format that can be fed into the sparse matrix routines:
+        COO_dict    = {}
+        for term, melpack in melpack_dict.items():
+            COO_dict[term]  = self.fill_in_param_arrays(new_inds, basis_lookup, *len_dict[term], *hop_melpack, dtype)
+            if self.debug_verb > mem_info_level:
+                print("Near-maximal memory usage on whoami_device, est. 1: %1.1f MiB" % (cupy.get_default_memory_pool().used_bytes()/1024**2))
+            del melpack
 
         if self.debug_verb > 2:
-            print("    b.4: Converted Hamiltonian matrix elements into dense coo format.")
+            print("    b.%i: Converted Hamiltonian matrix elements into dense coo format." % (len(self.use_terms) + 2))
         if self.debug_verb > 3:
             t0              = time.time()
             unique, counts  = cupy.unique(self.get_pos(new_inds), return_counts=True)
@@ -447,71 +588,57 @@ class lazy_holstein_model:
 
         if (self.get_pos(new_inds[coupl_from]) != self.get_pos(new_inds[coupl_to])).sum() != 0:
             raise RuntimeError("Coupling matrix is not diagonal in the exciton Hilbert space!")
-        return (diag_vals, new_inds), (hopping_vals, (hop_to, hop_from)), (coupl_vals, (coupl_to, coupl_from)), ceiling_hits
+        return (diag_vals, new_inds), COO_dict, ceiling_hits
 
 
 
     ###################################
     # simple but annoying array-filling function
     ###################################
-    def fill_in_param_arrays(self, new_inds, basis_lookup, seg1, seg2, plus_triple, minus_triple, o_star, dtype):
+    def fill_in_param_arrays(self, new_inds, basis_lookup, seg1, seg2, plus_triple, o_star, minus_triple, dtype):
         # order: plus, plus c.c., minus, minus c.c.
 
         ### map_from indices:
         inds_from                   = self.use_module.empty(2 * (seg1 + seg2), dtype=dtype)
 
-        if plus_triple[2] is True:
-            # plus part:
-            inds_from[:seg1]                = basis_lookup
-            # plus, c.c.:
-            t0 = time.time()
-            findme                          = plus_triple[0]
-        else:
-            # plus part:
-            inds_from[:seg1]                = basis_lookup[plus_triple[2]]
-            # plus, c.c.:
-            t0 = time.time()
-            findme                          = plus_triple[0][plus_triple[2]]
+        # plus part:
+        inds_from[:seg1]            = basis_lookup[plus_triple[2]]
+        # plus, c.c.:
+        t0 = time.time()
+        findme                      = plus_triple[0][plus_triple[2]]
 
-        inds_from[seg1:2*seg1]          = self.searchsorted(new_inds, findme)
-        self.print_searchsorted_timing(time.time() - t0, new_inds.shape[0], findme.shape[0])
+        inds_from[seg1:2*seg1]      = self.searchsorted(new_inds, findme)
+        print_searchsorted_timing(self.debug_verb, time.time() - t0, new_inds.shape[0], findme.shape[0])
 
         prev    = 2*seg1
-        if minus_triple[2] is True:
-            # minus:
-            inds_from[prev:prev+seg2]       = basis_lookup[o_star]
-            # minus, c.c.:
-            t0 = time.time()
-            findme                          = minus_triple[0]
-        else:
-            # minus:
-            inds_from[prev:prev+seg2]       = basis_lookup[o_star][minus_triple[2]]
-            # minus, c.c.:
-            t0 = time.time()
-            findme                          = minus_triple[0][minus_triple[2]]
+        # minus:
+        inds_from[prev:prev+seg2]   = basis_lookup[o_star][minus_triple[2]]
+        # minus, c.c.:
+        t0 = time.time()
+        findme                      = minus_triple[0][minus_triple[2]]
 
-        inds_from[prev+seg2:]           = self.searchsorted(new_inds, findme)
-        self.print_searchsorted_timing(time.time() - t0, new_inds.shape[0], findme.shape[0])
+        inds_from[prev+seg2:]       = self.searchsorted(new_inds, findme)
+        print_searchsorted_timing(self,debug_verb, time.time() - t0, new_inds.shape[0], findme.shape[0])
 
         ### map_to indices:
-        inds_to                         = self.use_module.empty(2 * (seg1 + seg2), dtype=dtype)
+        inds_to                     = self.use_module.empty(2 * (seg1 + seg2), dtype=dtype)
         # plus part:
-        inds_to[:seg1]                  = inds_from[seg1:2*seg1]
+        inds_to[:seg1]              = inds_from[seg1:2*seg1]
         # plus, c.c.:
-        inds_to[seg1:2*seg1]            = inds_from[:seg1]
+        inds_to[seg1:2*seg1]        = inds_from[:seg1]
         # minus part:
-        inds_to[prev:prev+seg2]         = inds_from[prev+seg2:]
+        inds_to[prev:prev+seg2]     = inds_from[prev+seg2:]
         # minus, c.c.:
-        inds_to[prev+seg2:]             = inds_from[prev:prev+seg2]
+        inds_to[prev+seg2:]         = inds_from[prev:prev+seg2]
 
-        vals                            = self.use_module.empty(len(inds_to), dtype=type(self.t_sys))
-        if plus_triple[2] is True or type(plus_triple[1]) not in (cupy.ndarray, numpy.ndarray):
+        vals                        = self.use_module.empty(len(inds_to), dtype=type(self.t_sys))
+        if type(plus_triple[1]) not in (cupy.ndarray, numpy.ndarray):
             vals[:seg1]                 = plus_triple[1]
             vals[seg1:2*seg1]           = numpy.conj(plus_triple[1])
         else:
             vals[:seg1]                 = plus_triple[1][plus_triple[2]]
             vals[seg1:2*seg1]           = self.use_module.conj(plus_triple[1])[plus_triple[2]]
-        if minus_triple[2] is True or type(minus_triple[1]) not in (cupy.ndarray, numpy.ndarray):
+        if type(minus_triple[1]) not in (cupy.ndarray, numpy.ndarray):
             vals[prev:prev+seg2]        = minus_triple[1]
             vals[prev+seg2:]            = numpy.conj(minus_triple[1])
         else:
@@ -526,118 +653,35 @@ class lazy_holstein_model:
     # allow for two-step adaptation by adding neighboring basis states to the existing basis set
     ###################################
     def enlarge_basis_set(self, basis_states):
-        max_HO_dims     = self.max_HO_dims_v if basis_states.device == vector_device else self.max_HO_dims_w
 
-       # start with hopping
-        hop_plus        = basis_states.copy()
-        self.add_n_to_pos(hop_plus, 1)
-        hop_minus       = basis_states.copy()
-        self.add_n_to_pos(hop_minus, -1)
-        excpos          = self.get_pos(basis_states) 
-        if self.periodic:
-            raise NotImplementedError("Periodic hopping not yet implemented.")
-        else:
-            hop_plus    = hop_plus[excpos < self.nchain-1]
-            hop_minus   = hop_minus[excpos > 0]
+        # Generate the various non-diagonal matrix elements:
+        ind_dict    = {}
+        len_dict    = {}
+        totallen    = basis_states.shape[0]
+        for i, term in enuemrate(self.use_terms):
+            plus, minus     = getattr(self, "generate_mel_" + term)(basis_states, raw_map_to=True)
+            ind_dict[term]  = plus, minus
+            len_dict[term]  = [len(plus), len(minus)]
+            totallen        += len1 + len2
 
-        # now coupling:
-        phonon_occs     = self.get_phonon_at_exc(basis_states)
+        # Now create a new array to hold all of the new indices:
+        all_inds                            = cupy.empty((totallen, basis_states.shape[1]), dtype=self.dtype)
 
-        coupl_plus      = (basis_states[phonon_occs < max_HO_dims[excpos] - 1]).copy()
-        self.add_phonon_at_exc(coupl_plus)
+        # Start filling in all the indices, starting with the diagonal terms:
+        all_inds[:basis_states.shape[0]]    = basis_states
+        start                               = basis_states.shape[0]
+        for term, (plus, minus) in ind_dict.items():
+            thislen                             = len_dict[term]
+            midp                                = start+thislen[0]
+            all_inds[start:midp]                = plus
+            all_inds[midp:midp+thislen[1]]      = minus
+            start   += sum(thislen)
+        if start != totallen:
+            raise ValueError("Fatal error that I shall not further specify because I want to annoy you.")
 
-        coupl_minus     = (basis_states[phonon_occs > 0]).copy()
-        self.rem_phonon_at_exc(coupl_minus)
+        # Remove duplicates within the new indices:
+        return self.cupy_unique(all_inds)
 
-        lenlist         = [len(i) for i in [basis_states, hop_plus, hop_minus, coupl_plus, coupl_minus]]
-        total           = self.use_module.empty((sum(lenlist), basis_states.shape[1]), dtype=self.dtype)
-        for i, thing in enumerate([basis_states, hop_plus, hop_minus, coupl_plus, coupl_minus]):
-            total[sum(lenlist[:i]):sum(lenlist[:i+1])]  = thing
-            del thing
-
-        return self.cupy_unique(total)
-
-
-
-    ###################################
-    # generate hopping matrix elements
-    ###################################
-    def generate_mel_hopping(self, basis_states):   # basis_states does not have to be sorted for this to work
-        excpos  = self.get_pos(basis_states)
-
-        # generate the plus side of the hopping (= to the right):
-        plus_inds               = basis_states.copy()
-        self.add_n_to_pos(plus_inds, 1)
-        plus_vals               = self.t_sys
-        if self.periodic:
-            raise NotImplementedError("Periodic hopping not yet implemented.")
-#            plus_inds[:,0]          = plus_inds[:,0] % self.nchain
-#            plus_mask               = self.use_module.ones_like(plus_vals, dtype=bool)
-#            plus_mask               = True
-        else:         ### for OBC, remove boundary excursions:
-            plus_mask               = excpos < self.nchain-1
-
-        # generate a mask to remove values that occur in both the input and plus_inds:
-        t0 = time.time()
-        if plus_mask is True:
-            sortplus    = plus_inds[cupy.lexsort(plus_inds.T[::-1])]
-        else:
-            mpluind     = plus_inds[plus_mask]
-            sortplus    = mpluind[cupy.lexsort(mpluind.T[::-1])]
-            del mpluind
-        o_star_mask = cupy.any(sortplus[self.searchsorted(sortplus, basis_states, allow_escapes=True)] != basis_states, axis=1)
-        if self.debug_verb > searchsorted_timing_level:
-            t1 = time.time()
-            print("This application of (sorting +) searchsorted (+ masking) took %f ms (arg sizes %i, %i)." % ((t1-t0)*1000, sortplus.shape[0], basis_states.shape[0]))
-
-
-        # generate the minus side of the coupling (= to the left):
-        minus_inds              = basis_states[o_star_mask].copy()
-        self.add_n_to_pos(minus_inds, -1)
-        minus_vals              = numpy.conj(self.t_sys)
-        if self.periodic:
-            raise NotImplementedError("Periodic hopping not yet implemented.")
-#            minus_mask              = True
-        else:         ### for OBC, remove boundary excursions:
-            minus_mask              = excpos[o_star_mask] > 0 # remove the ones that mapped to the last site
-
-#        return self.fill_into_results(basis_states, plus_inds, plus_vals, plus_mask, basis_states[o_star_mask], minus_inds, minus_vals, minus_mask)
-        return (plus_inds, plus_vals, plus_mask), o_star_mask, (minus_inds, minus_vals, minus_mask)
-
-
-    ###################################
-    # generate vibronic coupling matrix elements
-    ###################################
-    def generate_mel_coupling(self, basis_states):
-        max_HO_dims     = self.max_HO_dims_v if basis_states.device == vector_device else self.max_HO_dims_w
-        phonon_occs     = self.get_phonon_at_exc(basis_states)
-        excpos          = self.get_pos(basis_states)
-
-        # generate the plus side of the coupling:
-        plus_inds               = basis_states.copy()
-        self.add_phonon_at_exc(plus_inds)
-        plus_vals               = self.coupling_g * self.use_module.sqrt(phonon_occs+1, dtype=cupy.float64)
-        # add mask for ceiling hits:
-        plus_mask               = phonon_occs < max_HO_dims[excpos] - 1
-        ceiling_hits            = (len(basis_states) - plus_mask.sum())
-
-        # generate a mask to remove values that occur in both the input and plus_inds:
-        t0 = time.time()
-        mpluind     = plus_inds[plus_mask]
-        sortplus    = mpluind[cupy.lexsort(mpluind.T[::-1])]
-        del mpluind
-        o_star_mask = cupy.any(sortplus[self.searchsorted(sortplus, basis_states, allow_escapes=True)] != basis_states, axis=1)
-        if self.debug_verb > searchsorted_timing_level:
-            t1 = time.time()
-            print("This application of (sorting +) searchsorted (+ masking) took %f ms (arg sizes %i, %i)." % ((t1-t0)*1000, sortplus.shape[0], basis_states.shape[0]))
-
-        # generate the minus side of the coupling:
-        minus_inds                              = basis_states[o_star_mask].copy()
-        self.rem_phonon_at_exc(minus_inds)
-        minus_vals                              = numpy.conj(self.coupling_g) * self.use_module.sqrt(phonon_occs[o_star_mask], dtype=cupy.float64)
-        minus_mask                              = phonon_occs[o_star_mask] > 0
-
-        return (plus_inds, plus_vals, plus_mask), o_star_mask, (minus_inds, minus_vals, minus_mask), ceiling_hits
 
 
     ###################################
@@ -652,45 +696,9 @@ class lazy_holstein_model:
         mask[1:]    = cupy.any(sortarr[1:] != sortarr[:-1], axis=1)
         return sortarr[mask]
 
-    ###################################
-    # a function to test the performance of a cupy-based replacement for numpy.isin with view
-    # (in case you forgot the result: for arrays of size (1e7, 10), the cupy method is 100 times faster)
-    ###################################
-    def test_isin(self, num=int(1e7)):
-        a       = numpy.ones((num, self.nchain + 1), dtype=numpy.uint8)
-        a[:,0]  = (numpy.random.random(num) * self.nchain).astype(numpy.uint8)
-        a[:,1:] = (numpy.random.random((num, self.nchain)) * 256).astype(numpy.uint8)
-        a       = numpy.unique(a, axis=0)
-
-        b       = numpy.ones((num//2, self.nchain + 1), dtype=numpy.uint8)
-        b[:,0]  = (numpy.random.random(num//2) * self.nchain).astype(numpy.uint8)
-        b[:,1:] = (numpy.random.random((num//2, self.nchain)) * 256).astype(numpy.uint8)
-        b       = numpy.unique(b, axis=0)
-
-        form                = [('f%i' % i, numpy.uint8) for i in range(a.shape[1])]
-
-        t0 = time.time()
-        nres = numpy.isin(b.view(form), a.view(form), assume_unique=True).flatten()       # assign common values to positions
-        t1 = time.time()
-        print("Runtime of numpy.isin with unconventional view: %f seconds (arg sizes %i, %i)." % (t1-t0, b.shape[0], a.shape[0]))
-
-        ca      = cupy.array(a)
-        cb      = cupy.array(b)
-        t0 = time.time()
-        cres = cupy.all(ca[self.searchsorted(ca, cb, allow_escapes=True)] == cb, axis=1)       # this only works if ca is sorted
-        t1 = time.time()
-        print("Runtime of cupy alternative: %f seconds." % (t1-t0))
-        print(numpy.all(nres == cupy.asnumpy(cres)))
-
 
 ###################################################################################################################################################################################
-
-def write_params(fname, obj, itemstr):
-    try:
-        value   = getattr(getattr(obj, itemstr), "__name__")
-    except AttributeError:
-        value   = getattr(obj, itemstr)
-    fname.write(itemstr + " = " + str(value) + '\n')
+###################################################################################################################################################################################
 
 class time_evolution:
     def __init__(self, HamObj, dirname=None, verbose=True, m_star=25, debug_verb=0, shuffle_seed=0, U_weighting_method="coherence"):

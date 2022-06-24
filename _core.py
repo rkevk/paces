@@ -6,6 +6,7 @@ import inspect
 import sys
 import os
 import os.path
+import pprint
 
 import numpy
 import cupy
@@ -368,19 +369,14 @@ class HamiltonianTerms(HilbertSkeleton):
         and return (melpack, debug_info), where melpack must be of the form ((plus_inds, plus_vals, plus_mask), o_star_mask, (minus_inds, minus_vals, minus_mask)). debug_info can be None.
     The terms that shall be used in a given calculation are specified via use_terms.
     """
-    def __init__(self, use_terms, eps_sys, t_sys, eps_bath, coupling_g, delta_eps=0, **kwargs):
+    def __init__(self, use_terms, **kwargs):
         super().__init__(**kwargs)
-        self.eps_sys        = eps_sys
-        self.t_sys          = t_sys
-        self.eps_bath       = eps_bath
-        self.coupling_g     = coupling_g
-        self.delta_eps      = delta_eps         # this is the tilt in the excitonic potential energy
-        self.use_terms      = use_terms         # this is a list of strings specifying which terms to include
+        self.use_terms      = use_terms         # this is a dict of dicts: the set of major keys specifies which terms to include, each sub-dict specifies that term's parameter(s)
 
-        if self.periodic:
-            self.hopnum         = self.nchain
-        else:
-            self.hopnum         = self.nchain - 1
+#        if self.periodic:
+#            self.hopnum         = self.nchain
+#        else:
+#            self.hopnum         = self.nchain - 1
 
     ###################################
     # generate hopping matrix elements
@@ -427,10 +423,10 @@ class HamiltonianTerms(HilbertSkeleton):
     # wrappers for first- and second-order
     ###################################
     def generate_mel_hopping(self, basis_states, raw_map_to=False):   # basis_states does not have to be sorted for this to work
-        return _generate_mel_hopping(self, basis_states, self.t_sys, order=1, raw_map_to)
+        return _generate_mel_hopping(self, basis_states, self.use_terms["hopping"]["J"], order=1, raw_map_to=raw_map_to)
 
     def generate_mel_hopping2(self, basis_states, raw_map_to=False):   # basis_states does not have to be sorted for this to work
-        return _generate_mel_hopping(self, basis_states, self.t_sys2, order=2, raw_map_to)
+        return _generate_mel_hopping(self, basis_states, self.use_terms["hopping2"]["J2"], order=2, raw_map_to=raw_map_to)
 
 
     ###################################
@@ -464,8 +460,8 @@ class HamiltonianTerms(HilbertSkeleton):
             return plus_inds[plus_mask], minus_inds[minus_mask]
 
         # generate the values of the matrix elements:
-        plus_vals               = self.coupling_g * self.use_module.sqrt(phonon_occs+1, dtype=cupy.float64)
-        minus_vals              = numpy.conj(self.coupling_g) * self.use_module.sqrt(phonon_occs[o_star_mask], dtype=cupy.float64)
+        plus_vals               = self.use_terms["coupling"]["g"] * self.use_module.sqrt(phonon_occs+1, dtype=cupy.float64)
+        minus_vals              = numpy.conj(self.use_terms["coupling"]["g"]) * self.use_module.sqrt(phonon_occs[o_star_mask], dtype=cupy.float64)
 
         return ((plus_inds, plus_vals, plus_mask), o_star_mask, (minus_inds, minus_vals, minus_mask),), ceiling_hits
 
@@ -473,9 +469,9 @@ class HamiltonianTerms(HilbertSkeleton):
     # generate diagonal elements
     ###################################
     def generate_diag_vals(self, basis_states):
-        diag_vals   = self.eps_sys + self.eps_bath * self.sum_all_phonons(basis_states)
-        if self.delta_eps != 0:
-            diag_vals   += self.delta_eps * self.get_pos(basis_states)
+        diag_vals   = self.use_terms["diag"]["eps_sys"] + self.use_terms["diag"]["hbar_omega"] * self.sum_all_phonons(basis_states)
+        if self.use_terms["diag"]["delta_eps"] != 0:
+            diag_vals   += self.use_terms["diag"]["delta_eps"] * self.get_pos(basis_states)
         return diag_vals
 
     ###################################
@@ -631,7 +627,17 @@ class HamiltonianObject(HamiltonianTerms):
         # minus, c.c.:
         inds_to[prev+seg2:]         = inds_from[prev:prev+seg2]
 
-        vals                        = self.use_module.empty(len(inds_to), dtype=type(self.t_sys))
+
+        try:
+            valdtype    = plus_triple[1].dtype
+            if valdtype != minus_triple[1].dtype:
+                raise TypeError("dtypes for plus and minus components of a Hamiltonian term were found to differ.")
+        except AttributeError:
+            valdtype    = type(plus_triple[1])
+            if valdtype != type(minus_triple[1]):
+                raise TypeError("Value types for plus and minus components of a Hamiltonian term were found to differ.")
+
+        vals                        = self.use_module.empty(len(inds_to), dtype=valdtype)
         if type(plus_triple[1]) not in (cupy.ndarray, numpy.ndarray):
             vals[:seg1]                 = plus_triple[1]
             vals[seg1:2*seg1]           = numpy.conj(plus_triple[1])
@@ -716,13 +722,16 @@ class time_evolution:
             self.use_module.random.seed(shuffle_seed)
         self.first_order_U_importance   = getattr(self, "first_order_U_importance_" + U_weighting_method)
 
+        self.real_valued                = all([all([value.imag == 0 for value in paramdict.values()]) for paramdict in self.HamObj.use_terms.values()])
+        if not self.real_valued:
+            raise NotImplementedError("Not all functions have been adapted to complex-valued off-diagonal Hamiltonian matrix elements.") # specifically, the first_order_U_importance methods
+
         self.hop_board          = None              # this will be lazily constructed if calculate_hopping is called
 
         self.params_file        = os.path.join(self.dirname, "HamObj_params_run" + str(time.time()) + ".log")
         with open(self.params_file, "w") as HamObj_params_file:
             HamObj_params_file.write("### HamObj parameters:\n")
-            for itemstr in ("nchain", "eps_sys", "t_sys", "eps_bath", "coupling_g", "delta_eps", "max_HO_dims_v", "complex_type", "periodic", "use_module", "maxstates", "wordsize"):
-                write_params(HamObj_params_file, self.HamObj, itemstr)
+            HamObj_params_file.write(pprint.pformat(self.HamObj.use_terms, width=1) + '\n')
             HamObj_params_file.write("### time_evolution parameters:\n")
             for itemstr in ("m_star", "shuffle_seed", "first_order_U_importance"):
                 write_params(HamObj_params_file, self, itemstr)
@@ -737,7 +746,7 @@ class time_evolution:
         function_start_time = time.time()
         if self.verbose:
             print("Creating initial basis set...", end=' ')
-            sys.stdout.flush()        
+            sys.stdout.flush()
         if truncate_d > self.HamObj.max_HO_dims_v.min():
             raise ValueError("Specified basis truncation value exceeds at least one of the max_HO_dims.")
         if self.HamObj.nchain * truncate_d**self.HamObj.nchain > self.HamObj.maxstates:
@@ -1204,7 +1213,7 @@ class time_evolution:
             if not item in  ["H", "hopping", "coupling", "n_b", "reduced_dm", "diagnostics"] + ["phonon%i" % i for i in range(self.HamObj.nchain)] + ["phononproj%i" % i for i in range(self.HamObj.nchain)]:
                 raise ValueError('Unrecognized observable "%s".' % item)
 
-        hopstring       = b"hopping " + b''.join([b"hop%i " %i for i in range(self.HamObj.hopnum)])
+        hopstring       = b"hopping " + b''.join([b"hop%i " %i for i in range(self.HamObj.nchain - 1 + int(self.HamObj.periodic))])
         vibstring       = b''.join([b"vib%i " %i for i in range(self.HamObj.nchain)])
         H_file_header   = b"#tag norm " + b"H_tevol " * ("H" in observables) + hopstring * ("hopping" in observables) + vibstring * ("coupling" in observables) + b'\n'
         if "H" in observables or "hopping" in observables or "coupling" in observables:
@@ -1302,6 +1311,7 @@ class time_evolution:
 
             ### Start computing observables:
             if "reduced_dm" in observables:
+                raise NotImplementedError("The reduced density matrix calculation has not yet been converted to the generalized data segmentation.")
                 dm_complex  = self.calculate_reduced_dm(vector, mindiff=dm_mindiff)
                 if type(dm_complex) != numpy.ndarray:
                     dm_complex = cupy.asnumpy(dm_complex)
@@ -1576,8 +1586,6 @@ class time_evolution:
         """
         Determine, more or less, the contribution of each basis state of |psi> to coherence it provides in the future.
         """
-        if self.HamObj.coupling_g.imag != 0 or self.HamObj.t_sys.imag != 0:
-            raise NotImplementedError("This function hasn't been adapted to complex-valued off-diagonal Hamiltonian matrix elements yet.")
         psi_squared = self.use_module.abs(vector)**2
         ones        = self.use_module.ones(self.numstates)
     # the following is the original version, which, however, doesn't work, so use the other one as long as M is hermitian and real:

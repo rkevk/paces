@@ -398,7 +398,8 @@ class HamiltonianTerms(HilbertSkeleton):
     """
     def __init__(self, use_terms, **kwargs):
         super().__init__(**kwargs)
-        self.use_terms      = use_terms         # this is a dict of dicts: the set of major keys specifies which terms to include, each sub-dict specifies that term's parameter(s)
+        self.use_terms      = use_terms                     # this is a dict of dicts: the set of major keys specifies which terms to include, each sub-dict specifies that term's parameter(s)
+        self.term_tuple     = tuple(self.use_terms.keys())  # keep a tuple of the names of the terms to have a guaranteed order for the keys
 #        if self.periodic:
 #            self.hopnum         = self.nchain
 #        else:
@@ -981,10 +982,28 @@ class time_evolution:
     ###################################
     # generate sparse matrices
     ###################################
-    def create_matrices(self, diag_params, hopping_params, coupl_params):
-        self.sparse_hopping     = self.use_module.sparse.coo_matrix((hopping_params[0], hopping_params[1]), shape=(self.numstates, self.numstates)).tocsr()
-        self.sparse_coupling    = self.use_module.sparse.coo_matrix((coupl_params[0], coupl_params[1]), shape=(self.numstates, self.numstates)).tocsr()
+    def create_matrices(self, diag_params, COO_dict):
+        self.sparse_mats_dict   = {term: self.use_module.sparse.coo_matrix(COO, shape=(self.numstates, self.numstates)).tocsr() for term, COO in COO_dict.items()}
         self.diag_vals          = diag_params
+
+
+    ###################################
+    # apply total Hamiltonian to a vector
+    # setting vector="ones" generates an everywhere-one input vector
+    ###################################
+    def total_H(self, vector):
+        # diagonal terms are contained within the case distinction:
+        if type(vector) is str and vector == "ones":
+            B       = self.diag_vals
+            vector  = self.use_module.ones(self.numstates)
+        else:
+            B       = self.diag_vals * vector
+
+        # off-diagonal terms:
+        for mat in self.sparse_mats_dict.values():
+            B           += mat.dot(vector)
+        return B
+
 
 
     ###################################
@@ -1016,12 +1035,8 @@ class time_evolution:
             coeff       = -1j * delta_t / float(j+1)
             if self.debug_verb > simple_taylor_level:
                 print("Check 3.")
-            B_old       = B.copy()
-            B           = self.sparse_hopping.dot(B_old)
-            B           += self.sparse_coupling.dot(B_old)
-            B           += self.diag_vals * B_old
+            B           = self.total_H(B)
             B           *= coeff
-            del B_old
             if self.debug_verb > simple_taylor_level:
                 print("Check 4.")
             c2          = cupy_expm_multiply.cupy_exact_inf_norm(B)
@@ -1150,7 +1165,7 @@ class time_evolution:
         """
         if self.HamObj.nchain % 2 == 0 and self.HamObj.periodic:
             raise NotImplementedError("This doesn't work for even chain lengths with periodic boundary conditions.")
-        allvals = vector.conj() * self.sparse_hopping.dot(vector)
+        allvals = vector.conj() * self.sparse_mats_dict["hopping"].dot(vector)
 
         V_i = self.calculate_partitioned_sum(allvals)
 
@@ -1171,14 +1186,14 @@ class time_evolution:
     # compute avg. coupling interaction
     ###################################
     def calculate_coupling(self, vector):
-        allvals     = vector.conj() * self.sparse_coupling.dot(vector)
+        allvals     = vector.conj() * self.sparse_mats_dict["coupling"].dot(vector)
         return self.calculate_partitioned_sum(allvals)
 
     ###################################
     # compute total energy of a state
     ###################################
     def calculate_total_energy(self, vector):
-        return self.use_module.vdot(vector, self.sparse_hopping.dot(vector) + self.sparse_coupling.dot(vector) + self.diag_vals * vector)
+        return self.use_module.vdot(vector, self.total_H(vector))
 
     ###################################
     # perform entire time evolution
@@ -1267,9 +1282,8 @@ class time_evolution:
             print("Finished generate_timeline setup! Beginning time evolution...")
 
         vector = self.vector
-        prepare_results = None
+        diag_coo_debug  = None
         impstates       = None
-        max_bath_pre    = None
         for i in range(len(t_array)):
             t       = t_array[i]
             delta_t = t - t_array[i-1]
@@ -1292,8 +1306,8 @@ class time_evolution:
                                                                                                     do_fancy_stuff="diagnostics" in observables, 
                                                                                                     use_U_weight_function=(use_U_weight_delta_t != 0 and i != 0),
                                                                                                     delta_t=use_U_weight_delta_t,
-                                                                                                    prepare_results=prepare_results,
-                                                                                                    impstates=impstates)    # max_bath_pre=max_bath_pre)
+                                                                                                    diag_coo_debug=diag_coo_debug,
+                                                                                                    impstates=impstates)
 #                ceiling_hits, post_adapt_norm, post_adapt_H     = self.generate_new_Hilbert_space_cupy(vector, garbage_tol=garbage_tol, do_fancy_stuff="diagnostics" in observables, use_U_weight_function=(use_U_weight_function and delta_t != 0), delta_t=0.2)
             if self.debug_verb > 0:
                 print("Check 2.2: Finished determining next Hilbert subspace.")
@@ -1310,7 +1324,7 @@ class time_evolution:
                     with whoami_device:
                         with whoami_stream:
                             new_select      = cupy.asarray(select_whoami)
-                            prepare_results = self.HamObj.generate_mel(new_select, enlarge_steps=enlarge_steps)
+                            diag_coo_debug = self.HamObj.generate_mel(new_select, enlarge_steps=enlarge_steps)
                     del select_whoami
 
             norm        = self.use_module.linalg.norm(vector).item()
@@ -1441,61 +1455,43 @@ class time_evolution:
     # generate new Hilbert subspace from evolved vector using a cupy alternative to numpy.isin
     # (the built-in cupy.isin method is very memory-inefficient)
     ###################################
-    def generate_new_Hilbert_space_cupy(self, vector, use_U_weight_function, enlarge_steps=0, delta_t=0, garbage_tol=0, do_fancy_stuff=False, prepare_results=None, impstates=None):
-        if prepare_results is None:
+    def generate_new_Hilbert_space_cupy(self, vector, use_U_weight_function, enlarge_steps=0, delta_t=0, garbage_tol=0, do_fancy_stuff=False, diag_coo_debug=None, impstates=None):
+        if diag_coo_debug is None:
             select_whoami, impstates    = self.determine_select_whoami(vector, use_U_weight_function=use_U_weight_function, delta_t=delta_t, garbage_tol=garbage_tol)
             if use_U_weight_function:   # this is somewhat shady, but we need to deal with the t=0 case, where we haven't even created these matrices yet, which will correspond to use_U_weight_function == False:
-                del self.sparse_coupling, self.sparse_hopping, self.diag_vals
+                del self.sparse_mats_dict
             # create the new matrices:
             # switch to whoami_device to use that device's RAM instead:
             if whoami_device != vector_device:
                 with whoami_device:
-                    prepare_results = self.HamObj.generate_mel(cupy.asarray(select_whoami), enlarge_steps=enlarge_steps)
+                    diag_coo_debug = self.HamObj.generate_mel(cupy.asarray(select_whoami), enlarge_steps=enlarge_steps)
             else:
-                prepare_results = self.HamObj.generate_mel(select_whoami, enlarge_steps=enlarge_steps)
-
-#            labels  = [("diag_vals", "new_inds"), ("hopping_vals", ("hop_to", "hop_from")), ("coupl_vals", ("coupl_to", "coupl_from"))]
-#            for i in range(3):
-#                numpy.save(labels[i][0], prepare_results[i][0])
-#                if i == 0:
-#                    numpy.save(labels[i][1], prepare_results[i][1])
-#                else:
-#                    for j in range(2):
-#                        numpy.save(labels[i][1][j], prepare_results[i][1][j])
+                diag_coo_debug = self.HamObj.generate_mel(select_whoami, enlarge_steps=enlarge_steps)
 
             del select_whoami
 
         # Now transfer to current_device, if necessary:
         if whoami_device != vector_device:
             t0 = time.time()
-            (diag_vals, new_inds), (hopping_vals, hopping_inds), (coupl_vals, coupl_inds), ceiling_hits  = (cupy.asarray(prepare_results[0][0]), cupy.asarray(prepare_results[0][1])), (cupy.asarray(prepare_results[1][0]), (cupy.asarray(prepare_results[1][1][0]), cupy.asarray(prepare_results[1][1][1]))), (cupy.asarray(prepare_results[2][0]), (cupy.asarray(prepare_results[2][1][0]), cupy.asarray(prepare_results[2][1][1]))), prepare_results[3]
+            diag_vals, new_inds = [cupy.asarray(i) for i in diag_coo_debug[0]]
+            COO_dict            = {term: (cupy.asarray(vals), (cupy.asarray(inds_to), cupy.asarray(inds_from))) for term, (vals, (inds_to, inds_from)) in diag_coo_debug[1].items()}
+            debug_dict          = {term: cupy.asarray(vals) for term, vals in diag_coo_debug[2].items()}
             if self.debug_verb > move_data_timing_level:
                 t1 = time.time()
                 print("Moving data from device %i to device %i took %f ms." % (whoami_device, vector_device, (t1-t0)*1000))
         else:
-            (diag_vals, new_inds), (hopping_vals, hopping_inds), (coupl_vals, coupl_inds), ceiling_hits = prepare_results
+            (diag_vals, new_inds), COO_dict, debug_dict = diag_coo_debug
 
         if self.debug_verb > 1:
             print("  a: Determined important states: (%i in total)" % impstates)
-#        if self.debug_verb > 2:
-#            print("    Max bath occ prior to recalc: %i." % max_bath_pre)
-
 
         if self.debug_verb > 1:
             print("  b: Created matrix elements.")
 
-#        max_bath_post = new_inds[:,1:].max()
-#        if self.debug_verb > 2:
-#            print("    Max bath occ after recalc: %i." % max_bath_post)
-#        if max_bath_post > max_bath_pre + 1 + enlarge_steps:
-#            raise RuntimeError("Max bath occ has increased by more than %i over the course of a single step!" % (1 + enlarge_steps))
-#        if max_bath_post > self.HamObj.max_HO_dim:
-#            raise RuntimeError("Max phonon occupation (%i) exceeded!" % self.HamObj.max_HO_dim)
-
         # self.numstates now represents the new numstates:
         self.numstates      = new_inds.shape[0]
-        self.create_matrices(diag_vals, (hopping_vals, hopping_inds), (coupl_vals, coupl_inds)) # this needs the new numstates to work
-        del hopping_vals, hopping_inds, coupl_vals, coupl_inds
+        self.create_matrices(diag_vals, COO_dict) # this needs the new numstates to work
+        del COO_dict
 
         # insert old vector coefficients; this assumes that all whoami's are sorted
         if self.debug_verb > 2:
@@ -1537,7 +1533,9 @@ class time_evolution:
         if self.debug_verb > 1:
             print("  c: Inserted previous vector coefficients.")
 
-        return ceiling_hits, pre_evolve_norm, pre_evolve_H
+        # The return values are only for diagnostic purposes:
+        # The meat of this method (calculating the new matrices etc.) is done via attributes of the object
+        return debug_dict["coupling"], pre_evolve_norm, pre_evolve_H
 
 
 
@@ -1600,10 +1598,9 @@ class time_evolution:
         Determine, more or less, the contribution of each basis state of |psi> to coherence it provides in the future.
         """
         psi_squared = self.use_module.abs(vector)**2
-        ones        = self.use_module.ones(self.numstates)
     # the following is the original version, which, however, doesn't work, so use the other one as long as M is hermitian and real:
 #        return psi_squared + (delta_t**2) * psi_squared * (self.use_module.ones(self.numstates).dot(self.sparse_coupling) + self.use_modules.ones(self.numstates).dot(self.sparse_hopping) + self.diag_vals)**2
-        return psi_squared + (delta_t**2) * psi_squared * self.use_module.power(self.sparse_coupling.dot(ones) + self.sparse_hopping.dot(ones) + self.diag_vals, 2)
+        return psi_squared + (delta_t**2) * psi_squared * self.use_module.power(self.total_H("ones"), 2)
 
     ###################################
     # determine weight of basis states using a forward-looking method
@@ -1612,7 +1609,7 @@ class time_evolution:
         """
         Determine the contribution of each basis state of |psi> to the norm_squared of (1 - i δt H)|psi>.
         """
-        return self.use_module.abs(vector - 1j*delta_t * (self.sparse_coupling.dot(vector) + self.sparse_hopping.dot(vector) + self.diag_vals * vector))
+        return self.use_module.abs(vector - 1j*delta_t * self.total_H(vector))
 
 ###################################################################################################################################################################################
 

@@ -35,18 +35,18 @@ periodic        = False
 ###############################
 # Hamiltonian parameters:
 param_dict = {
-    "diag":     {
-        "eps_sys":      -4.0,
-        "hbar_omega":   1.0,
-        "delta_eps":    1.0,
-               },
-    "hopping":  {
-        "J":  -1.0,
-               },
-    "coupling": {
-        "g":  4.0,
-               },
-           }
+    "diag":     dict(
+        eps_sys     = -4.0,
+        hbar_omega  = 1.0,
+        delta_eps   = 1.0,
+        ),
+    "hopping":  dict(
+        J   = -1.0,
+        ),
+    "coupling": dict(
+        g   = 4.0,
+        ),
+    }
 
 ###############################
 # Initial state position:
@@ -57,44 +57,44 @@ fillfac     = 0.3
 
 ###############################
 # general time_evolution parameters:
-te_dict =   {
-    "maxstates":            int(7.5e6), #int(13e6),
-    "shuffle_seed":         None,
-    "U_weighting_method":   "coherence",
-    "m_star":               100,
-           }
+te_dict = dict(
+    maxstates           = int(7.5e6), #int(13e6),
+    shuffle_seed        = None,
+    U_weighting_method  = "coherence",
+    m_star              = 100,
+    )
 
 #dirname = "../adaptive_results/vib_gendatseg/negt_n%i_d%i_g%02i_coherence" % (nchain, max_HO_dim, int(coupling_g*10))
 dirname = "../adaptive_results/vib_gendatseg/sandbox"
 
 ###############################
 # generate_timeline parameters:
-timeline_params =   {
-    "t_array":              numpy.arange(0.00, 50.05, 0.05),
-    "observables":          ["n_b", "H", "diagnostics"],
-    "use_U_weight_delta_t": 0.5,
-    "save_every":           200,
-                   }
+timeline_params = dict(
+    t_array             = numpy.arange(0.00, 50.05, 0.05),
+    observables         = ["n_b", "H", "diagnostics"],
+    use_U_weight_delta_t= 0.5,
+    save_every          = 200,
+    )
 
 ###############################
 # Remaining technical parameters,
 # these should most likely be left unchanged:
 
 # technical parameters of HilbertSkeleton
-tech_dict   = {
-    "use_complex_type": numpy.complex128,
-    "search_mindiff":   32,
-    "wordsize":         32
-     }
+tech_dict   = dict(
+    use_complex_type    = numpy.complex128,
+    search_mindiff      = 32,
+    wordsize            = 32
+    )
 
 # technical parameters of generate_timeline
-timeline_tech_params =  {
-    "enlarge_steps":        1,
-    "save_first":   True,
-    "save_last":    True,
-    "garbage_tol":  -1,
-    "dm_mindiff":   32,
-                       }
+timeline_tech_params =  dict(
+    enlarge_steps   = 1,
+    save_first      = True,
+    save_last       = True,
+    garbage_tol     = -1,
+    dm_mindiff      = 32,
+    )
 
 # End of parameters, start of calculations
 ###################################################################################################################################################################################

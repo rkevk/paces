@@ -1172,9 +1172,10 @@ class time_evolution:
         use_U_weight_delta_t:   float, the delta_t to use for the forward-looking part of the Hilbert subspace determination. 0 disables forward-looking.
         enlarge_steps:          int, the number of additional matrix elements to incorporate when determining the next Hilbert subspace. 0 takes only directly interacting basis states, 1 adds indirect interactions via 1 intermediate, 2 via 2 etc.
         """
+        timeline_start_time = time.time()
         if self.verbose:
             print("Setting up generate_timeline function...")
-        header = format_function_args(inspect.currentframe())
+        header = format_function_args(inspect.currentframe(), timeline_start_time)
         with open(self.params_file, 'a') as params_file:
             params_file.write(header)
 
@@ -1395,9 +1396,9 @@ class time_evolution:
 #                diag_file.write(b"#tag norm seconds_since_start post_adapt_norm post_adapt_H expm_converged final_m final_expm_term rel_error_expm numstates ceiling_hits\n")
                 with open(os.path.join(self.dirname, "diagnostics.log"), fmode_dict["diagnostics"]) as diag_file:
                     if t == 0:
-                        numpy.savetxt(diag_file, [t, norm, time.time() - function_start_time, post_adapt_norm, post_adapt_H, 0, 0, 0, 0, self.numstates, 0], newline=" ")
+                        numpy.savetxt(diag_file, [t, norm, time.time() - timeline_start_time, post_adapt_norm, post_adapt_H, 0, 0, 0, 0, self.numstates, 0], newline=" ")
                     else:
-                        numpy.savetxt(diag_file, [t, norm, time.time() - function_start_time, post_adapt_norm, post_adapt_H, expm_converged, final_m, final_expm_term.item(), rel_error_expm.item(), self.numstates, ceiling_hits.item()], newline=" ")
+                        numpy.savetxt(diag_file, [t, norm, time.time() - timeline_start_time, post_adapt_norm, post_adapt_H, expm_converged, final_m, final_expm_term.item(), rel_error_expm.item(), self.numstates, ceiling_hits.item()], newline=" ")
                     diag_file.write(b'\n')
 
             if self.debug_verb > mem_info_level:

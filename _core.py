@@ -46,7 +46,7 @@ def format_function_args(frame, start_time=None):
     args, _, _, values  = inspect.getargvalues(frame)
     arg_list            = [(str(i) + "=" + str(values[i])) for i in args if str(i) != "self"]
     fname               = frame.f_code.co_name
-    return ("\nFunction call at %f:\n   %s(" % (fname, start_time)) + ', '.join(arg_list) + ")\n"
+    return ("\nFunction call at %f:\n   %s(" % (start_time, fname)) + ', '.join(arg_list) + ")\n"
 
 
 

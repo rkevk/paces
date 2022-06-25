@@ -65,7 +65,7 @@ def format_function_args(frame, start_time=None):
     args, _, _, values  = inspect.getargvalues(frame)
     arg_list            = [(str(i) + "=" + str(values[i])) for i in args if str(i) != "self"]
     fname               = frame.f_code.co_name
-    return ("\nFunction call at %f (%s local):\n   %s(" % (start_time, fname, localtime)) + ', '.join(arg_list) + ")\n"
+    return ("\nFunction call at %f (%s local):\n   %s(" % (start_time, localtime, fname)) + ', '.join(arg_list) + ")\n"
 
 
 def print_searchsorted_timing(verb, delta_t, size1, size2):
@@ -755,10 +755,10 @@ class time_evolution:
             for itemstr in ("nchain", "max_HO_dims_v", "complex_type", "periodic", "use_module", "wordsize"):
                 write_params(HamObj_params_file, self.HamObj, itemstr)
 
-            HamObj_params_file.write("### HamiltonianTerms parameters:\n")
+            HamObj_params_file.write("\n### HamiltonianTerms parameters:\n")
             HamObj_params_file.write(pprint.pformat(self.HamObj.use_terms, width=1) + '\n')
 
-            HamObj_params_file.write("### time_evolution parameters:\n")
+            HamObj_params_file.write("\n### time_evolution parameters:\n")
             for itemstr in ("maxstates", "shuffle_seed", "first_order_U_importance", "m_star"):
                 write_params(HamObj_params_file, self, itemstr)
 

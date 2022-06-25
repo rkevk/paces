@@ -457,10 +457,10 @@ class HamiltonianTerms(HilbertSkeleton):
     # wrappers for first- and second-order
     ###################################
     def generate_mel_hopping(self, basis_states, raw_map_to=False):   # basis_states does not have to be sorted for this to work
-        return _generate_mel_hopping(self, basis_states, self.use_terms["hopping"]["J"], order=1, raw_map_to=raw_map_to)
+        return self._generate_mel_hopping(basis_states, self.use_terms["hopping"]["J"], order=1, raw_map_to=raw_map_to)
 
     def generate_mel_hopping2(self, basis_states, raw_map_to=False):   # basis_states does not have to be sorted for this to work
-        return _generate_mel_hopping(self, basis_states, self.use_terms["hopping2"]["J2"], order=2, raw_map_to=raw_map_to)
+        return self._generate_mel_hopping(basis_states, self.use_terms["hopping2"]["J2"], order=2, raw_map_to=raw_map_to)
 
 
     ###################################
@@ -512,7 +512,7 @@ class HamiltonianTerms(HilbertSkeleton):
     # generate generate a mask to remove values that occur in both the input inds and plus_inds
     # (general helper function, not to be modified)
     ###################################
-    def _generate_o_star_mask(basis_states, plus_inds, plus_mask):
+    def _generate_o_star_mask(self, basis_states, plus_inds, plus_mask):
         t0 = time.time()
         mpluind     = plus_inds[plus_mask]
         sortplus    = mpluind[cupy.lexsort(mpluind.T[::-1])]
@@ -603,7 +603,7 @@ class HamiltonianObject(HamiltonianTerms):
         # Based on the newly determined unique set of indices, convert the existing melpacks into the format that can be fed into the sparse matrix routines:
         COO_dict    = {}
         for term, melpack in melpack_dict.items():
-            COO_dict[term]  = self.fill_in_param_arrays(new_inds, basis_lookup, *len_dict[term], *hop_melpack, dtype)
+            COO_dict[term]  = self.fill_in_param_arrays(new_inds, basis_lookup, *len_dict[term], *melpack, dtype)
             if self.debug_verb > mem_info_level:
                 print("Near-maximal memory usage on whoami_device, est. 1: %1.1f MiB" % (cupy.get_default_memory_pool().used_bytes()/1024**2))
             del melpack
@@ -649,7 +649,7 @@ class HamiltonianObject(HamiltonianTerms):
         findme                      = minus_triple[0][minus_triple[2]]
 
         inds_from[prev+seg2:]       = self.searchsorted(new_inds, findme)
-        print_searchsorted_timing(self,debug_verb, time.time() - t0, new_inds.shape[0], findme.shape[0])
+        print_searchsorted_timing(self.debug_verb, time.time() - t0, new_inds.shape[0], findme.shape[0])
 
         ### map_to indices:
         inds_to                     = self.use_module.empty(2 * (seg1 + seg2), dtype=dtype)
@@ -702,7 +702,7 @@ class HamiltonianObject(HamiltonianTerms):
             plus, minus     = getattr(super(), "generate_mel_" + term)(basis_states, raw_map_to=True)
             ind_dict[term]  = plus, minus
             len_dict[term]  = [len(plus), len(minus)]
-            totallen        += len1 + len2
+            totallen        += sum(len_dict[term])
 
         # Now create a new array to hold all of the new indices:
         all_inds                            = cupy.empty((totallen, basis_states.shape[1]), dtype=self.dtype)

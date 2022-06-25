@@ -159,7 +159,7 @@ class HilbertSkeleton:
     The internals of this object are not meant to be user-exposed, though they will need to be changed when considering a different type of Hilbert space.
     However, upon instantiation, this object takes all the fundamental Hilbert space parameters as input (from the user).
     """
-    def __init__(self, nchain, periodic, maxstates, max_HO_dims, use_complex_type=numpy.complex128, use_module=cupy, debug_verb=0, search_mindiff=32, wordsize=32):
+    def __init__(self, nchain, periodic, max_HO_dims, use_complex_type=numpy.complex128, use_module=cupy, debug_verb=0, search_mindiff=32, wordsize=32):
         if not ("vector_device" in globals() and "whoami_device" in globals()):
             raise NameError("The CUDA devices to be used must be defined as global variables (check file device_config.py)")
         if cupy.cuda.Device() != vector_device:
@@ -168,7 +168,6 @@ class HilbertSkeleton:
         self.nchain         = nchain
         self.complex_type   = use_complex_type
         self.periodic       = bool(periodic)
-        self.maxstates      = maxstates
         self.debug_verb     = debug_verb
         self.search_mindiff = search_mindiff
         self.wordsize       = wordsize          # this determines the int type used to store the compressed basis states (best should be 32, resulting in uint32)
@@ -532,8 +531,8 @@ class HamiltonianObject(HamiltonianTerms):
     # This is the heart of this object.
     ###################################
     def generate_mel(self, basis_states, enlarge_steps=0):
-        if basis_states.shape[0] > self.maxstates:
-            raise ValueError("Number of basis states exceeds maxstates.")
+#        if basis_states.shape[0] > self.maxstates:
+#            raise ValueError("Number of basis states exceeds maxstates.")
         if basis_states.shape[1] != self.totwordwidth:
             raise ValueError("Basis states do not match the number of bits specified at initialization.")
         for i in range(enlarge_steps):
@@ -721,10 +720,11 @@ class HamiltonianObject(HamiltonianTerms):
 ###################################################################################################################################################################################
 
 class time_evolution:
-    def __init__(self, HamObj, dirname=None, verbose=True, m_star=25, debug_verb=0, shuffle_seed=0, U_weighting_method="coherence"):
+    def __init__(self, HamObj, maxstates, dirname=None, verbose=True, m_star=100, debug_verb=0, shuffle_seed=0, U_weighting_method="coherence"):
         if verbose:
             print("Initializing time_evolution object...")
         self.HamObj     = HamObj
+        self.maxstates  = maxstates
         self.dirname    = dirname
         self.verbose    = verbose
         self.m_star     = m_star                    # this is the max iteration of the Taylor approximation
@@ -780,6 +780,8 @@ class time_evolution:
         truncate_d_list:    Number of basis states at given phonon site
         lowest_d_list:      Lowest basis state to construct (defaults to 0 everywhere)
             The highest n at each site is then lowest_d + truncate_d
+        minpos:             The leftmost exciton position
+        maxpos:             The rightmost exciton position + 1 (i.e., maxpos=nchain is the largest possible)
         """
         function_start_time = time.time()
         if self.verbose:

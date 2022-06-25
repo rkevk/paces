@@ -71,7 +71,7 @@ dirname = "../adaptive_results/vib_gendatseg/sandbox"
 # generate_timeline parameters:
 timeline_params =   {
     "t_array":              numpy.arange(0.00, 50.05, 0.05),
-    "observables":          ["n_b", "H", "diagnostics"]
+    "observables":          ["n_b", "H", "diagnostics"],
     "use_U_weight_delta_t": 0.5,
     "save_every":           200,
                    }

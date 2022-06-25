@@ -64,7 +64,7 @@ def format_function_args(frame, start_time=None):
     args, _, _, values  = inspect.getargvalues(frame)
     arg_list            = [(str(i) + "=" + str(values[i])) for i in args if str(i) != "self"]
     fname               = frame.f_code.co_name
-    return ("\nFunction call at %f:\n   %s(" % (fname, start_time)) + ', '.join(arg_list) + ")\n"
+    return ("\nFunction call at %f:\n   %s(" % (start_time, fname)) + ', '.join(arg_list) + ")\n"
 
 
 def print_searchsorted_timing(verb, delta_t, size1, size2):
@@ -763,7 +763,7 @@ class time_evolution:
             sys.stdout.flush()
         if truncate_d > self.HamObj.max_HO_dims_v.min():
             raise ValueError("Specified basis truncation value exceeds at least one of the max_HO_dims.")
-        if self.HamObj.nchain * truncate_d**self.HamObj.nchain > self.HamObj.maxstates:
+        if self.HamObj.nchain * truncate_d**self.HamObj.nchain > self.maxstates:
             raise ValueError("Number of states that would result from this value of truncate_d exceeds maxstates!")
         # print current basis creation to file
         header = format_function_args(inspect.currentframe(), function_start_time)
@@ -795,7 +795,7 @@ class time_evolution:
             raise ValueError("Incorrect chain length.")
         if any([lowest_d_list[i] + truncate_d_list[i] > self.HamObj.max_HO_dims_v[i] for i in range(self.HamObj.nchain)]):
             raise ValueError("Specified basis truncation value exceeds at least one of the max_HO_dims.")
-        if numpy.product(truncate_d_list) * (maxpos-minpos) > self.HamObj.maxstates:
+        if numpy.product(truncate_d_list) * (maxpos-minpos) > self.maxstates:
             raise ValueError("Number of states that would result from this value of truncate_d exceeds maxstates!")
         if minpos < 0 or maxpos > self.HamObj.nchain or minpos >= maxpos:
             raise ValueError("Invalid minpos or maxpos.")
@@ -830,7 +830,7 @@ class time_evolution:
             sys.stdout.flush()
 #        if len(truncate_d_list) != self.HamObj.nchain:
 #            raise ValueError("Incorrect chain length.")
-#        if numpy.product(truncate_d_list) * self.HamObj.nchain > self.HamObj.maxstates:
+#        if numpy.product(truncate_d_list) * self.HamObj.nchain > self.maxstates:
 #            raise ValueError("Number of states that would result from this value of truncate_d exceeds maxstates!")
         if maxval >= self.HamObj.max_HO_dims_v.max():
             raise ValueError("Specified basis truncation value exceeds the maximal max_HO_dims.")
@@ -849,7 +849,7 @@ class time_evolution:
             basis_list      += [cartesian_product(*[numpy.arange(super_gauss[i] * this_d_gauss[j], dtype=numpy.uint8) for j in range(self.HamObj.nchain)])]
 #            print()
             numstates       += len(basis_list[-1])
-            if numstates > self.HamObj.maxstates:
+            if numstates > self.maxstates:
                 raise ValueError("The parameters specified for the initial basis set generate a basis set whose size exceeds maxstates.")
 
         self.numstates      = numstates
@@ -908,7 +908,7 @@ class time_evolution:
         initsize            = len(self.whoami)
         whoami              = self.whoami
         n                   = 0
-        while len(whoami) <= self.HamObj.maxstates * fillfac:
+        while len(whoami) <= self.maxstates * fillfac:
             previous_whoami = whoami
             n               += 1
             if n > n_max:
@@ -1558,29 +1558,29 @@ class time_evolution:
         del tmpvec
 
         if (self.shuffle_seed is None
-                or len(vector) < self.HamObj.maxstates
-                or sorted_vector[-self.HamObj.maxstates-1] < sorted_vector[-self.HamObj.maxstates]):
+                or len(vector) < self.maxstates
+                or sorted_vector[-self.maxstates-1] < sorted_vector[-self.maxstates]):
             if self.debug_verb > 4 and self.shuffle_seed is not None:
                 print("    No state shuffling to be performed.")
-            select_whoami       = self.whoami[sorted_indices][-self.HamObj.maxstates:]
+            select_whoami       = self.whoami[sorted_indices][-self.maxstates:]
             if garbage_tol >= 0:
-                select_whoami       = select_whoami[sorted_vector[-self.HamObj.maxstates:] > garbage_tol]
+                select_whoami       = select_whoami[sorted_vector[-self.maxstates:] > garbage_tol]
         else:
-            decision_val        = sorted_vector[-self.HamObj.maxstates]
+            decision_val        = sorted_vector[-self.maxstates]
             firstind            = cupy.searchsorted(sorted_vector, decision_val, "left")
             lastind             = cupy.searchsorted(sorted_vector, decision_val, "right")
             if self.debug_verb > 4:
                 print("    Number of states to be shuffled: %i" % (lastind - firstind))
             indfromback         = len(vector) - lastind
-            if indfromback > self.HamObj.maxstates:
+            if indfromback > self.maxstates:
                 raise ValueError("A catastrophic error occurred while shuffling the equal-valued basis states.")
 
             sorted_whoami                   = self.whoami[sorted_indices]
 
-            select_whoami                   = self.use_module.zeros((self.HamObj.maxstates, self.whoami.shape[1]), dtype=self.whoami.dtype)
+            select_whoami                   = self.use_module.zeros((self.maxstates, self.whoami.shape[1]), dtype=self.whoami.dtype)
             select_whoami[-indfromback:]    = sorted_whoami[-indfromback:]
 #            assert cupy.all(sorted_vector[firstind:lastind] == sorted_vector[firstind])
-            select_whoami[:-indfromback]    = cupy.random.permutation(sorted_whoami[firstind:lastind])[:self.HamObj.maxstates-indfromback]
+            select_whoami[:-indfromback]    = cupy.random.permutation(sorted_whoami[firstind:lastind])[:self.maxstates-indfromback]
             if garbage_tol >= 0:
                 raise NotImplementedError("garbage_tol combined with equal-value shuffling has not yet been implemented.")
             del sorted_whoami

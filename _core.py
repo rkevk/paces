@@ -397,8 +397,15 @@ class HamiltonianTerms(HilbertSkeleton):
     """
     def __init__(self, use_terms, **kwargs):
         super().__init__(**kwargs)
-        self.use_terms      = use_terms                     # this is a dict of dicts: the set of major keys specifies which terms to include, each sub-dict specifies that term's parameter(s)
-        self.term_tuple     = tuple(self.use_terms.keys())  # keep a tuple of the names of the terms to have a guaranteed order for the keys
+        # The main dict specifying the Hamiltonian.
+        # This is a dict of dicts: the set of major keys specifies which terms to include, 
+        #   each sub-dict specifies that term's parameter(s).
+        self.use_terms      = use_terms
+        # for convenience, define a dict with the diag terms removed:
+        self.offdiag_terms  = {k: self.use_terms[k] for k in self.use_terms if k != "diag"}
+
+        # old stuff that may be required in the future:
+#        self.term_tuple     = tuple(self.use_terms.keys())  # keep a tuple of the names of the terms to have a guaranteed order for the keys
 #        if self.periodic:
 #            self.hopnum         = self.nchain
 #        else:
@@ -543,7 +550,7 @@ class HamiltonianObject(HamiltonianTerms):
         debug_dict      = {}
         len_dict        = {}
         totallen        = basis_states.shape[0]
-        for i, term in enumerate(self.use_terms):
+        for i, term in enumerate(self.offdiag_terms):
             melpack, debug_dict[term]   = getattr(super(), "generate_mel_" + term)(basis_states)
             len1, len2                  = int(melpack[0][2].sum()), int(melpack[2][2].sum())
             len_dict[term]              = [len1, len2]
@@ -577,7 +584,7 @@ class HamiltonianObject(HamiltonianTerms):
         new_inds        = cupy_unique(all_inds)
 
         if self.debug_verb > 2:
-            print("    b.%i: Determined new whoami array." % (len(self.use_terms) + 1))
+            print("    b.%i: Determined new whoami array." % (len(self.offdiag_terms) + 1))
 
         diag_vals   = self.generate_diag_vals(new_inds)
         if self.debug_verb > 2:
@@ -602,7 +609,7 @@ class HamiltonianObject(HamiltonianTerms):
             del melpack
 
         if self.debug_verb > 2:
-            print("    b.%i: Converted Hamiltonian matrix elements into dense coo format." % (len(self.use_terms) + 2))
+            print("    b.%i: Converted Hamiltonian matrix elements into dense coo format." % (len(self.offdiag_terms) + 2))
         if self.debug_verb > 3:
             t0              = time.time()
             unique, counts  = cupy.unique(self.get_pos(new_inds), return_counts=True)
@@ -691,7 +698,7 @@ class HamiltonianObject(HamiltonianTerms):
         ind_dict    = {}
         len_dict    = {}
         totallen    = basis_states.shape[0]
-        for i, term in enumerate(self.use_terms):
+        for i, term in enumerate(self.offdiag_terms):
             plus, minus     = getattr(super(), "generate_mel_" + term)(basis_states, raw_map_to=True)
             ind_dict[term]  = plus, minus
             len_dict[term]  = [len(plus), len(minus)]

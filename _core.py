@@ -447,7 +447,7 @@ class HamiltonianTerms(HilbertSkeleton):
             return plus_inds[plus_mask], minus_inds[minus_mask]
 
         # generate the values of the matrix elements:
-        minus_vals              = numpy.conj(t_sys)
+        minus_vals              = t_sys.conjugate()
         plus_vals               = t_sys
         return ((plus_inds, plus_vals, plus_mask), o_star_mask, (minus_inds, minus_vals, minus_mask),), None
 
@@ -494,8 +494,8 @@ class HamiltonianTerms(HilbertSkeleton):
             return plus_inds[plus_mask], minus_inds[minus_mask]
 
         # generate the values of the matrix elements:
-        plus_vals               = self.use_terms["coupling"]["g"] * self.use_module.sqrt(phonon_occs+1, dtype=cupy.float64)
-        minus_vals              = numpy.conj(self.use_terms["coupling"]["g"]) * self.use_module.sqrt(phonon_occs[o_star_mask], dtype=cupy.float64)
+        plus_vals               = self.use_terms["coupling"]["g"]             * self.use_module.sqrt(phonon_occs+1, dtype=cupy.float64)
+        minus_vals              = self.use_terms["coupling"]["g"].conjugate() * self.use_module.sqrt(phonon_occs[o_star_mask], dtype=cupy.float64)
 
         return ((plus_inds, plus_vals, plus_mask), o_star_mask, (minus_inds, minus_vals, minus_mask),), ceiling_hits
 
@@ -663,28 +663,27 @@ class HamiltonianObject(HamiltonianTerms):
         inds_to[prev+seg2:]         = inds_from[prev:prev+seg2]
 
 
-        try:
+        try:                    # assume the values *are* stored as arrays
             valdtype    = plus_triple[1].dtype
             if valdtype != minus_triple[1].dtype:
                 raise TypeError("dtypes for plus and minus components of a Hamiltonian term were found to differ (%s and %s)." % (valdtype, minus_triple[1].dtype))
-        except AttributeError:
+
+            vals                        = self.use_module.empty(len(inds_to), dtype=valdtype)
+            vals[:seg1]                 = plus_triple[1][plus_triple[2]]
+            vals[seg1:2*seg1]           = self.use_module.conj(plus_triple[1])[plus_triple[2]]
+            vals[prev:prev+seg2]        = minus_triple[1][minus_triple[2]]
+            vals[prev+seg2:]            = self.use_module.conj(minus_triple[1])[minus_triple[2]]
+
+        except AttributeError:  # if the values are not stored as arrays
             valdtype    = type(plus_triple[1])
             if valdtype != type(minus_triple[1]):
                 raise TypeError("Value types for plus and minus components of a Hamiltonian term were found to differ (%s and %s)." % (valdtype, type(minus_triple[1])))
 
-        vals                        = self.use_module.empty(len(inds_to), dtype=valdtype)
-        if type(plus_triple[1]) not in (cupy.ndarray, numpy.ndarray):
+            vals                        = self.use_module.empty(len(inds_to), dtype=valdtype)
             vals[:seg1]                 = plus_triple[1]
-            vals[seg1:2*seg1]           = numpy.conj(plus_triple[1])
-        else:
-            vals[:seg1]                 = plus_triple[1][plus_triple[2]]
-            vals[seg1:2*seg1]           = self.use_module.conj(plus_triple[1])[plus_triple[2]]
-        if type(minus_triple[1]) not in (cupy.ndarray, numpy.ndarray):
+            vals[seg1:2*seg1]           = plus_triple[1].conjugate()
             vals[prev:prev+seg2]        = minus_triple[1]
-            vals[prev+seg2:]            = numpy.conj(minus_triple[1])
-        else:
-            vals[prev:prev+seg2]        = minus_triple[1][minus_triple[2]]
-            vals[prev+seg2:]            = self.use_module.conj(minus_triple[1])[minus_triple[2]]
+            vals[prev+seg2:]            = minus_triple[1].conjugate()
 
         return vals, (inds_to, inds_from)
 

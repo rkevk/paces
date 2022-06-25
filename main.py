@@ -65,8 +65,7 @@ te_dict = dict(
     )
 
 prefix = "pos" if param_dict["hopping"]["J"] > 0 else "neg"
-#dirname = "../adaptive_results/vib_gendatseg/%st_n%i_d%i_g%02i_coherence" % (prefix, nchain, max_HO_dim, int(coupling_g*10))
-dirname = "../adaptive_results/vib_gendatseg/sandbox"
+dirname = "../adaptive_results/vib_gendatseg/%st_n%i_d%i_g%02i_coherence" % (prefix, nchain, max_HO_dim, int(paramdict["coupling"]['g']*10))
 
 ###############################
 # generate_timeline parameters:

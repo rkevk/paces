@@ -762,6 +762,8 @@ class time_evolution:
             for itemstr in ("maxstates", "shuffle_seed", "first_order_U_importance", "m_star"):
                 write_params(HamObj_params_file, self, itemstr)
 
+            HamObj_params_file.write("\n### End of parameter list\n#################################################################\n")
+
         if verbose:
             print("Finished initialization of time_evolution object!\n")
 

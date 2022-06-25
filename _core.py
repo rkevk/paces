@@ -666,11 +666,11 @@ class HamiltonianObject(HamiltonianTerms):
         try:
             valdtype    = plus_triple[1].dtype
             if valdtype != minus_triple[1].dtype:
-                raise TypeError("dtypes for plus and minus components of a Hamiltonian term were found to differ.")
+                raise TypeError("dtypes for plus and minus components of a Hamiltonian term were found to differ (%s and %s)." % (valdtype, minus_triple[1].dtype))
         except AttributeError:
             valdtype    = type(plus_triple[1])
             if valdtype != type(minus_triple[1]):
-                raise TypeError("Value types for plus and minus components of a Hamiltonian term were found to differ.")
+                raise TypeError("Value types for plus and minus components of a Hamiltonian term were found to differ (%s and %s)." % (valdtype, type(minus_triple[1])))
 
         vals                        = self.use_module.empty(len(inds_to), dtype=valdtype)
         if type(plus_triple[1]) not in (cupy.ndarray, numpy.ndarray):

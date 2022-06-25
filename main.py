@@ -64,6 +64,7 @@ te_dict = dict(
     m_star              = 100,
     )
 
+prefix = "pos" if param_dict["hopping"]["J"] > 0 else "neg"
 #dirname = "../adaptive_results/vib_gendatseg/negt_n%i_d%i_g%02i_coherence" % (nchain, max_HO_dim, int(coupling_g*10))
 dirname = "../adaptive_results/vib_gendatseg/sandbox"
 

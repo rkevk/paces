@@ -750,11 +750,17 @@ class time_evolution:
 
         self.params_file        = os.path.join(self.dirname, "HamObj_params_run" + str(time.time()) + ".log")
         with open(self.params_file, "w") as HamObj_params_file:
-            HamObj_params_file.write("### HamObj parameters:\n")
+            HamObj_params_file.write("### HilbertSkeleton parameters:\n")
+            for itemstr in ("nchain", "max_HO_dims_v", "complex_type", "periodic", "use_module", "wordsize"):
+                write_params(HamObj_params_file, self.HamObj, itemstr)
+
+            HamObj_params_file.write("### HamiltonianTerms parameters:\n")
             HamObj_params_file.write(pprint.pformat(self.HamObj.use_terms, width=1) + '\n')
+
             HamObj_params_file.write("### time_evolution parameters:\n")
-            for itemstr in ("m_star", "shuffle_seed", "first_order_U_importance"):
+            for itemstr in ("maxstates", "shuffle_seed", "first_order_U_importance", "m_star"):
                 write_params(HamObj_params_file, self, itemstr)
+
         if verbose:
             print("Finished initialization of time_evolution object!\n")
 

@@ -617,7 +617,7 @@ class HamiltonianObject(HamiltonianTerms):
             print("      Number of basis states with exciton at each site: " + str(dict(zip(unique.tolist(), counts.tolist()))) + " (this calculation took %f ms)" % ((t1 - t0)*1000))
 #            print("      Number of positions where coupling is not diagonal: %i." % (new_inds[coupl_from][:,0] != new_inds[coupl_to][:,0]).sum())
 
-        if (self.get_pos(new_inds[coupl_from]) != self.get_pos(new_inds[coupl_to])).sum() != 0:
+        if (self.get_pos(new_inds[COO_dict["coupling"][1][0]]) != self.get_pos(new_inds[COO_dict["coupling"][1][1]])).sum() != 0:
             raise RuntimeError("Coupling matrix is not diagonal in the exciton Hilbert space!")
         return (diag_vals, new_inds), COO_dict, debug_dict
 
@@ -763,7 +763,6 @@ class time_evolution:
     # generate initial basis set
     ###################################
     def create_uniform_truncated_basis(self, truncate_d):
-        function_start_time = time.time()
         if self.verbose:
             print("Creating initial basis set...", end=' ')
             sys.stdout.flush()
@@ -772,7 +771,7 @@ class time_evolution:
         if self.HamObj.nchain * truncate_d**self.HamObj.nchain > self.maxstates:
             raise ValueError("Number of states that would result from this value of truncate_d exceeds maxstates!")
         # print current basis creation to file
-        header = format_function_args(inspect.currentframe(), function_start_time)
+        header = format_function_args(inspect.currentframe())
         with open(self.params_file, 'a') as params_file:
             params_file.write(header)
         raw_whoami      = self.use_module.asarray(cartesian_product(numpy.arange(self.HamObj.nchain, dtype=numpy.uint8), *(numpy.arange(truncate_d, dtype=numpy.uint8) * numpy.ones(self.HamObj.nchain, dtype=numpy.uint8)[None].T)))
@@ -841,7 +840,7 @@ class time_evolution:
         if maxval >= self.HamObj.max_HO_dims_v.max():
             raise ValueError("Specified basis truncation value exceeds the maximal max_HO_dims.")
         # print current basis creation to file
-        header = format_function_args(inspect.currentframe(), function_start_time)
+        header = format_function_args(inspect.currentframe())
         with open(self.params_file, 'a') as params_file:
             params_file.write(header)
         def gauss(x, mu, sigma):
@@ -1225,9 +1224,10 @@ class time_evolution:
         use_U_weight_delta_t:   float, the delta_t to use for the forward-looking part of the Hilbert subspace determination. 0 disables forward-looking.
         enlarge_steps:          int, the number of additional matrix elements to incorporate when determining the next Hilbert subspace. 0 takes only directly interacting basis states, 1 adds indirect interactions via 1 intermediate, 2 via 2 etc.
         """
+        timeline_start_time = time.time()
         if self.verbose:
             print("Setting up generate_timeline function...")
-        header = format_function_args(inspect.currentframe())
+        header = format_function_args(inspect.currentframe(), timeline_start_time)
         with open(self.params_file, 'a') as params_file:
             params_file.write(header)
 
@@ -1448,9 +1448,9 @@ class time_evolution:
 #                diag_file.write(b"#tag norm seconds_since_start post_adapt_norm post_adapt_H expm_converged final_m final_expm_term rel_error_expm numstates ceiling_hits\n")
                 with open(os.path.join(self.dirname, "diagnostics.log"), fmode_dict["diagnostics"]) as diag_file:
                     if t == 0:
-                        numpy.savetxt(diag_file, [t, norm, time.time() - function_start_time, post_adapt_norm, post_adapt_H, 0, 0, 0, 0, self.numstates, 0], newline=" ")
+                        numpy.savetxt(diag_file, [t, norm, time.time() - timeline_start_time, post_adapt_norm, post_adapt_H, 0, 0, 0, 0, self.numstates, 0], newline=" ")
                     else:
-                        numpy.savetxt(diag_file, [t, norm, time.time() - function_start_time, post_adapt_norm, post_adapt_H, expm_converged, final_m, final_expm_term.item(), rel_error_expm.item(), self.numstates, ceiling_hits.item()], newline=" ")
+                        numpy.savetxt(diag_file, [t, norm, time.time() - timeline_start_time, post_adapt_norm, post_adapt_H, expm_converged, final_m, final_expm_term.item(), rel_error_expm.item(), self.numstates, ceiling_hits.item()], newline=" ")
                     diag_file.write(b'\n')
 
             if self.debug_verb > mem_info_level:

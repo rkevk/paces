@@ -1412,17 +1412,7 @@ class time_evolution:
                 if self.debug_verb > 0:
                     print("Check 6.2: Saved occupations.")
             if "H" in observables:
-                coupling_complex = self.calculate_coupling(vector)
-                if type(coupling_complex) != numpy.ndarray:
-                    coupling_complex    = cupy.asnumpy(coupling_complex)
-                coupling_real    = coupling_complex.real
-                coupling_imag    = coupling_complex.imag
-                diag_energy = (abs(vector)**2 * self.diag_vals).sum().item()
-                if hopping_complex is None:
-                    hopping_complex = self.calculate_hopping(vector)
-                if type(hopping_complex) != numpy.ndarray:
-                    hopping_complex = cupy.asnumpy(hopping_complex)
-                H_complex   = (diag_energy + coupling_complex.sum() + hopping_complex.sum())
+                H_complex   = self.calculate_total_energy(vector)
                 H_real      = H_complex.real
                 H_imag      = H_complex.imag
                 if self.debug_verb > 0:

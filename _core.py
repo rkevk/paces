@@ -1209,7 +1209,7 @@ class time_evolution:
     # compute total energy of a state
     ###################################
     def calculate_total_energy(self, vector):
-        return self.use_module.vdot(vector, self.total_H(vector))
+        return self.use_module.vdot(vector, self.total_H(vector)).item()
 
     ###################################
     # perform entire time evolution

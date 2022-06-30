@@ -1529,7 +1529,7 @@ class time_evolution:
             if pre_evolve_H.imag > 1e-12:
                 raise RuntimeError("Energy has non-vanishing imaginary part: %1.15f." % pre_evolve_H.imag)
             else:
-                pre_evolve_H    = pre_evolve_H.real.item()
+                pre_evolve_H    = pre_evolve_H.real
 
         if self.debug_verb > 2:
             if pre_evolve_norm == -1:

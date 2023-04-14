@@ -25,3 +25,12 @@ Then the steps are:
 4. Run the calculation using `python3 main.py`.
 
 By default, the calculation directory specified within `main.py` is given as a relative path to `main.py` itself, not to the location from which it is called. To change this behavior, remove the `os.chdir` call from the start of the file.
+
+# Internal structure
+Physically/mathematically, there are the following hierarchical levels, from most fundamental to most "ephemeral":
+- The structure of the Hilbert space itself (which local dimensions, constituents of the tensor product space, etc.).
+- The basis states within the given Hilbert space that are included in the current effective Hilbert space.
+- The Hamiltonian on top of the effective Hilbert space, along with any further observable matrices in the same effective Hilbert space.
+- The current state vector that lives within the effective Hilbert space.
+
+On the code level, these four levels are represented 

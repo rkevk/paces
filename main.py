@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 # coding: utf-8
- 
+
 import argparse
 import sys
 import os
 
-from _core import *
+import lh.models.holstein as current_model
 
 if os.path.dirname(sys.argv[0]) != '':
     os.chdir(os.path.dirname(sys.argv[0]))
@@ -56,7 +56,7 @@ initpos     = nchain//2
 fillfac     = 0.3
 
 ###############################
-# general time_evolution parameters:
+# general TimeEvolution parameters:
 te_dict = dict(
     maxstates           = int(7.5e6), #int(13e6),
     shuffle_seed        = None,
@@ -102,14 +102,14 @@ timeline_tech_params =  dict(
 with vector_device:
     ##############################################################
     # Generate the fundamental Hilbert space:
-    HamObj  = HamiltonianObject(
+    hamobj  = current_model.HamiltonianObject(
                 nchain=nchain, max_HO_dims=[max_HO_dim,]*nchain, periodic=periodic,
                 **tech_dict,
                 use_terms=param_dict)
 
     ##############################################################
-    # Instantiate the general time_evolution object:
-    te	    = time_evolution(HamObj, 
+    # Instantiate the general TimeEvolution object:
+    te	    = current_model.TimeEvolution(HamObj, 
                 dirname=dirname, verbose=verbose, debug_verb=debug_verb, 
                 **te_dict)
 

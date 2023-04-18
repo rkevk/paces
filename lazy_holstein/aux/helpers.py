@@ -12,7 +12,7 @@ import numpy
 import cupy
 import cupyx
 
-from device_config import *
+from ..device_config import *
 
 #import logging
 
@@ -41,17 +41,6 @@ def cartesian_product(*arrays):
     for i, a in enumerate(numpy.ix_(*arrays)):
         arr[...,i] = a
     return arr.reshape(-1, la)
-
-
-def format_function_args(frame, start_time=None):
-    if start_time is None:
-        start_time  = time.time()
-    localtime   = time.asctime(time.localtime(start_time))
-    args, _, _, values  = inspect.getargvalues(frame)
-    arg_list            = [(str(i) + "=" + str(values[i])) for i in args if str(i) != "self"]
-    fname               = frame.f_code.co_name
-    return ("\nFunction call at %f (%s local):\n   %s(" % (start_time, localtime, fname)) + ', '.join(arg_list) + ")\n"
-
 
 def print_searchsorted_timing(verb, delta_t, size1, size2):
     if verb > searchsorted_timing_level:

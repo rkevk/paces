@@ -27,10 +27,16 @@ Then the steps are:
 By default, the calculation directory specified within `main.py` is given as a relative path to `main.py` itself, not to the location from which it is called. To change this behavior, remove the `os.chdir` call from the start of the file.
 
 # Internal structure
-Physically/mathematically, there are the following hierarchical levels, from most fundamental to most "ephemeral":
+Physically/mathematically, there are the following hierarchical levels, from most fundamental/persistent to most "ephemeral":
 - The structure of the Hilbert space itself (which local dimensions, constituents of the tensor product space, etc.).
 - The basis states within the given Hilbert space that are included in the current effective Hilbert space.
 - The Hamiltonian on top of the effective Hilbert space, along with any further observable matrices in the same effective Hilbert space.
 - The current state vector that lives within the effective Hilbert space.
 
-On the code level, these four levels are represented 
+On the code level, these levels correspond to the following objects:
+- `HilbertSkeleton` represents the barebones Hilbert space without any knowledge of the Hamiltonian nor the current basis states.
+- `HamiltonianObject` is a child of `HilbertSkeleton` and introduces the actual Hamiltonian generation procedure based on the current basis state. This is the heart of any calculation. At the beginning of a calculation, a single, unchanging instance of `HamiltonianObject` is created upon which everything else builds.
+- `TimeEvolution` takes an instance of `HamiltonianObject` as a function and uses the latter to continuously regenerate new Hamiltonians, expand bases, etc. `TimeEvolution` introduces the ever-changing, current `basis_states` and `vector` objects.
+- `Observables` contains observable calculation routines.
+
+All of these classes inherit from respective `Framework` classes (e.g. `TimeEvolutionFramework`). The `Framework` classes are model-independent, and the children introduce the specifics of a given model (Holstein, multi-mode, etc.).

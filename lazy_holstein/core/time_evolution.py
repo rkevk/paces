@@ -15,8 +15,8 @@ import _lh_aux.cupy_expm_multiply as cupy_expm_multiply
 import _lh_aux.cupy_search as cupy_search
 import _lh_aux.cupy_gendatseg_kernels as cupy_gendatseg_kernels
 
-from _lh_aux.helpers import *
-from device_config import *
+from ..aux.helpers import *
+from ..device_config import *
 
 #import logging
 
@@ -44,41 +44,55 @@ move_data_timing_level          = 4
 mem_info_level                  = 4
 
 
+###################################
+# helper functions:
+###################################
+
+def write_params(fname, obj, itemstr):
+    try:
+        value   = getattr(getattr(obj, itemstr), "__name__")
+    except AttributeError:
+        value   = getattr(obj, itemstr)
+    fname.write(itemstr + " = " + str(value) + '\n')
+
+
 ###################################################################################################################################################################################
 
-class time_evolution:
-    def __init__(self, HamObj, maxstates, dirname=None, verbose=True, m_star=100, debug_verb=0, shuffle_seed=0, U_weighting_method="coherence"):
+class TimeEvolutionFramework:
+    def __init__(self, hamobj, maxstates, dirname=None, verbose=True, m_star=100, debug_verb=0, shuffle_seed=0, U_weighting_method="coherence", params_file=None):
         if verbose:
             print("Initializing time_evolution object...")
-        self.HamObj     = HamObj
+        self.hamobj     = hamobj
         self.maxstates  = maxstates
         self.dirname    = dirname
         self.verbose    = verbose
         self.m_star     = m_star                    # this is the max iteration of the Taylor approximation
-        self.use_module     = self.HamObj.use_module
+        self.use_module         = self.hamobj.use_module
         self.debug_verb         = debug_verb
-        self.HamObj.debug_verb  = self.debug_verb   # time_evolution debug_verb overrides HamObj debug_verb
-        self.shuffle_seed       = shuffle_seed      # when determining the new Hilbert space, shuffle equal values to avoid bias using this value as the initial seed
+        self.hamobj.debug_verb  = self.debug_verb   # time_evolution debug_verb overrides hamobj debug_verb
+        self.shuffle_seed       = shuffle_seed      # when determining the new Hilbert space, shuffle equal values (to avoid bias) using this value as the initial seed
         if shuffle_seed is not None:
             self.use_module.random.seed(shuffle_seed)
         self.first_order_U_importance   = getattr(self, "first_order_U_importance_" + U_weighting_method)
 
-        self.real_valued                = all([all([value.imag == 0 for value in paramdict.values()]) for paramdict in self.HamObj.use_terms.values()])
+        self.real_valued                = all([all([value.imag == 0 for value in paramdict.values()]) for paramdict in self.hamobj.use_terms.values()])
         if not self.real_valued:
             raise NotImplementedError("Not all functions have been adapted to complex-valued off-diagonal Hamiltonian matrix elements.") # specifically, the first_order_U_importance methods
 
-        self.hop_board          = None              # this will be lazily constructed if calculate_hopping is called
+        if params_file is None:
+            self.params_file    = os.path.join(self.dirname, "HamObj_params_run" + str(time.time()) + ".log")
+        else:
+            self.params_file    = params_file
 
-        self.params_file        = os.path.join(self.dirname, "HamObj_params_run" + str(time.time()) + ".log")
         with open(self.params_file, "w") as HamObj_params_file:
             HamObj_params_file.write("### HilbertSkeleton parameters:\n")
-            for itemstr in ("nchain", "max_HO_dims_v", "complex_type", "periodic", "use_module", "wordsize"):
-                write_params(HamObj_params_file, self.HamObj, itemstr)
+            for itemstr in [i for i in vars(self.hamobj) if i != "use_terms"]:
+                write_params(HamObj_params_file, self.hamobj, itemstr)
 
-            HamObj_params_file.write("\n### HamiltonianTerms parameters:\n")
-            HamObj_params_file.write(pprint.pformat(self.HamObj.use_terms, width=1) + '\n')
+            HamObj_params_file.write("\n### HamiltonianObject parameters:\n")
+            HamObj_params_file.write(pprint.pformat(self.hamobj.use_terms, width=1) + '\n')
 
-            HamObj_params_file.write("\n### time_evolution parameters:\n")
+            HamObj_params_file.write("\n### TimeEvolution parameters:\n")
             for itemstr in ("maxstates", "shuffle_seed", "first_order_U_importance", "m_star"):
                 write_params(HamObj_params_file, self, itemstr)
 
@@ -87,192 +101,49 @@ class time_evolution:
         if verbose:
             print("Finished initialization of time_evolution object!\n")
 
-    ###################################################################################################################################################################################
-    ###################################################################################################################################################################################
-    # generate initial basis set
-    ###################################
-
-    ###################################################################################################################################################################################
-    # Begin of Hilbert-space-dependent functions
-
-    def create_uniform_truncated_basis(self, truncate_d):
-        if self.verbose:
-            print("Creating initial basis set...", end=' ')
-            sys.stdout.flush()
-        if truncate_d > self.HamObj.max_HO_dims_v.min():
-            raise ValueError("Specified basis truncation value exceeds at least one of the max_HO_dims.")
-        if self.HamObj.nchain * truncate_d**self.HamObj.nchain > self.maxstates:
-            raise ValueError("Number of states that would result from this value of truncate_d exceeds maxstates!")
-        # print current basis creation to file
-        header = format_function_args(inspect.currentframe())
-        with open(self.params_file, 'a') as params_file:
-            params_file.write(header)
-        raw_whoami      = self.use_module.asarray(cartesian_product(numpy.arange(self.HamObj.nchain, dtype=numpy.uint8), *(numpy.arange(truncate_d, dtype=numpy.uint8) * numpy.ones(self.HamObj.nchain, dtype=numpy.uint8)[None].T)))
-        self.whoami     = self.HamObj.compress_states(raw_whoami)
-        self.numstates  = self.whoami.shape[0]
-        if self.verbose:
-            print("Done!")
-
-    def create_nonuniform_basis(self, truncate_d_list, lowest_d_list=None, minpos=0, maxpos=None):
-        """
-        truncate_d_list:    Number of basis states at given phonon site
-        lowest_d_list:      Lowest basis state to construct (defaults to 0 everywhere)
-            The highest n at each site is then lowest_d + truncate_d
-        minpos:             The leftmost exciton position
-        maxpos:             The rightmost exciton position + 1 (i.e., maxpos=nchain is the largest possible)
-        """
-        function_start_time = time.time()
-        if self.verbose:
-            print("Creating initial basis set...", end=' ')
-            sys.stdout.flush()
-        if maxpos is None:
-            maxpos = self.HamObj.nchain
-        if lowest_d_list is None:
-            lowest_d_list = numpy.zeros_like(truncate_d_list)
-        if len(truncate_d_list) != self.HamObj.nchain or len(lowest_d_list) != self.HamObj.nchain:
-            raise ValueError("Incorrect chain length.")
-        if any([lowest_d_list[i] + truncate_d_list[i] > self.HamObj.max_HO_dims_v[i] for i in range(self.HamObj.nchain)]):
-            raise ValueError("Specified basis truncation value exceeds at least one of the max_HO_dims.")
-        if numpy.product(truncate_d_list) * (maxpos-minpos) > self.maxstates:
-            raise ValueError("Number of states that would result from this value of truncate_d exceeds maxstates!")
-        if minpos < 0 or maxpos > self.HamObj.nchain or minpos >= maxpos:
-            raise ValueError("Invalid minpos or maxpos.")
-
-        # print current basis creation to file
-        header = format_function_args(inspect.currentframe(), function_start_time)
+    def write_current_params_to_file(self, frame, start_time=None):
+        if start_time is None:
+            start_time  = time.time()
+        localtime   = time.asctime(time.localtime(start_time))
+        args, _, _, values  = inspect.getargvalues(frame)
+        arg_list            = [(str(i) + "=" + str(values[i])) for i in args if str(i) != "self"]
+        fname               = frame.f_code.co_name
+        header = ("\nFunction call at %f (%s local):\n   %s(" % (start_time, localtime, fname)) + ', '.join(arg_list) + ")\n"
         with open(self.params_file, 'a') as params_file:
             params_file.write(header)
 
-        nontrivialdim       = numpy.array(truncate_d_list) > 1
-        dimlist             = [numpy.arange(lowest_d_list[i], lowest_d_list[i] + truncate_d_list[i], dtype=numpy.uint8) for i in range(self.HamObj.nchain) if nontrivialdim[i]]
-        nopad_whoami        = self.use_module.asarray(cartesian_product(numpy.arange(minpos, maxpos, dtype=numpy.uint8), *dimlist))
-
-        raw_whoami          = self.use_module.zeros((nopad_whoami.shape[0], self.HamObj.nchain+1), dtype=numpy.uint8)
-        raw_whoami[:,numpy.nonzero(nontrivialdim)[0]+1] = nopad_whoami[:,1:]
-        raw_whoami[:,0]     = nopad_whoami[:,0]
-        self.whoami         = self.HamObj.compress_states(raw_whoami)
-        self.numstates      = self.whoami.shape[0]
-        if self.verbose:
-            print("Done!")
-
-
-    def create_moving_gaussian_OBC_basis(self, super_mu, super_sigma, sigma, maxval):
-        """
-        Create an initial basis consisting of gaussian distributions of phonon occupations around the exciton position.
-        super_mu selects the initial exciton position, and super_sigma then sets how much bias is given to the initial position (where numpy.inf corresponds to zero bias and 0 to infinite bias).
-        sigma sets how sharp the individual distributions are and maxval sets the highest phonon occupation in total (note that the true max occupation will be slightly higher than maxval, however).
-        """
-        function_start_time = time.time()
-        if self.verbose:
-            print("Creating initial basis set...", end=' ')
-            sys.stdout.flush()
-#        if len(truncate_d_list) != self.HamObj.nchain:
-#            raise ValueError("Incorrect chain length.")
-#        if numpy.product(truncate_d_list) * self.HamObj.nchain > self.maxstates:
-#            raise ValueError("Number of states that would result from this value of truncate_d exceeds maxstates!")
-        if maxval >= self.HamObj.max_HO_dims_v.max():
-            raise ValueError("Specified basis truncation value exceeds the maximal max_HO_dims.")
-        # print current basis creation to file
-        header = format_function_args(inspect.currentframe())
-        with open(self.params_file, 'a') as params_file:
-            params_file.write(header)
-        def gauss(x, mu, sigma):
-            return numpy.exp(-0.5 * ((x-mu)/sigma)**2)
-        narr                = numpy.arange(self.HamObj.nchain)
-        super_gauss         = 1 + maxval * gauss(narr, super_mu, super_sigma)
-        basis_list          = []
-        numstates           = 0
-        for i in range(self.HamObj.nchain):
-            this_d_gauss    = gauss(narr, i, sigma)
-            basis_list      += [cartesian_product(*[numpy.arange(super_gauss[i] * this_d_gauss[j], dtype=numpy.uint8) for j in range(self.HamObj.nchain)])]
-#            print()
-            numstates       += len(basis_list[-1])
-            if numstates > self.maxstates:
-                raise ValueError("The parameters specified for the initial basis set generate a basis set whose size exceeds maxstates.")
-
-        self.numstates      = numstates
-        whoami              = self.use_module.empty((self.numstates, self.HamObj.nchain + 1), dtype=cupy.uint8)
-        c = 0
-        for i, basis_part in enumerate(basis_list):
-            whoami[c:c+len(basis_part),1:]      = self.use_module.asarray(basis_part)
-            whoami[c:c+len(basis_part),0]       = i
-            c += len(basis_part)
-
-        if self.use_module.any(whoami.max(axis=0) >= self.HamObj.max_HO_dims_v):
-            raise ValueError("max_HO_dims exceeded!")
-        self.whoami = self.HamObj.compress_states(whoami)
-
-        if self.verbose:
-            print("Done!")
-
-    ###################################
-    # generate tensor product phonon state (requires an existing basis set)
-    ###################################
-    def create_tensor_init_state(self, bstates, coeffs, excsite, sites="all"):
-        bstates = numpy.asarray(bstates)
-        coeffs  = numpy.asarray(coeffs, dtype=complex)
-        if sites != "all" and len(sites) > self.HamObj.nchain:
-            raise ValueError("Invalid number of sites.")
-        if len(bstates) != len(coeffs):
-            raise ValueError("Number of coefficients does not match number of states.")
-
-        if sites == "all":
-            sitemask    = numpy.ones(self.HamObj.nchain, dtype=bool)
-        else:
-            sitemask    = numpy.array([i in sites for i in range(self.HamObj.nchain)])
-        coeffs  = [coeffs] * sitemask.sum()
-        mat     = cartesian_product(*coeffs)
-        vector  = mat.prod(axis=1)
-        if abs(1 - numpy.linalg.norm(vector)) > 1e-12:
-            print(numpy.linalg.norm(vector))
-            raise ValueError("State is not normalized, aborting.")
-
-        bmask       = numpy.append([False], sitemask)
-        basis       = numpy.zeros((len(vector), self.HamObj.nchain+1))
-        basis[:,bmask]  = cartesian_product(*numpy.tile(bstates, (sum(sitemask), 1)))
-        basis[:,0]      = excsite
-
-        self.create_initial_vector(vector, basis, auto_normalize=True)
-
-    # End of Hilbert-space-dependent functions
     ###################################################################################################################################################################################
+
     def load_basis_from_file(self, loadfile):
         function_start_time = time.time()
         if self.verbose:
             print("Loading basis set from file...", end=' ')
             sys.stdout.flush()
+        self.write_current_params_to_file(inspect.currentframe(), function_start_time)
+
         self.whoami     = self.use_module.load(loadfile)
         self.numstates  = self.whoami.shape[0]
-        if self.whoami.shape[1] != self.HamObj.totwordsize:
-            raise ValueError("Loaded basis set does not match total number of bits as given by HamObj construction.")
-        if self.whoami.dtype != self.HamObj.dtype:
-            raise ValueError("Loaded basis set does not match the wordsize as given by HamObj construction.")
-
-        # print current basis creation to file
-        header = format_function_args(inspect.currentframe(), function_start_time)
-        with open(self.params_file, 'a') as params_file:
-            params_file.write(header)
+        if self.whoami.shape[1] != self.hamobj.totwordsize:
+            raise ValueError("Loaded basis set does not match total number of bits as given by hamobj construction.")
+        if self.whoami.dtype != self.hamobj.dtype:
+            raise ValueError("Loaded basis set does not match the wordsize as given by hamobj construction.")
 
         if self.verbose:
             print("Done!")
 
-    ###################################
-    # take a small initial basis set and
-    # optimize via Hamiltonian enlargement:
-    ###################################
     def grow_optimal_basis(self, n_max=numpy.inf, fillfac=1.0):
         """
+        Take a small initial basis set and grow an optimal larger one around it via Hamiltonian enlargement:
+
         n_max:      The maximum number of enlargement iterations to perform
         fillfac:    The proportion of maxstates to use up
+
+        The enlargement is stopped once either of these is reached.
         """
         if self.verbose:
             print("Growing initial basis set...", end=' ')
             sys.stdout.flush()
-
-        # print current basis creation to file
-        header = format_function_args(inspect.currentframe())
-        with open(self.params_file, 'a') as params_file:
-            params_file.write(header)
+        self.write_current_params_to_file(inspect.currentframe())
 
         initsize            = len(self.whoami)
         whoami              = self.whoami
@@ -282,7 +153,7 @@ class time_evolution:
             n               += 1
             if n > n_max:
                 break
-            whoami          = self.HamObj.enlarge_basis_set(previous_whoami)
+            whoami          = self.hamobj.enlarge_basis_set(previous_whoami)
 
         # use previous_whoami, since the last was the one that triggered the break condition
         self.whoami         = previous_whoami
@@ -301,7 +172,13 @@ class time_evolution:
             print("Creating the initial state vector...", end=' ')
             sys.stdout.flush()
 
-        vector_coo  = cupy.asnumpy(vector_coo)
+        try:
+            vector_coo  = cupy.asnumpy(vector_coo)
+        except NameError:
+            vector_coo  = numpy.asarray(vector_coo)
+        if type(vector_coo) is not numpy.ndarray:
+            raise TypeError("Conversion of initial vector_coo to numpy.ndarray failed.")
+
         if vector_coo.ndim != 2:
             raise ValueError("The coo list must be 2D, even if it contains only the entry for one basis state.")
         if numpy.unique(vector_coo, axis=0).shape != vector_coo.shape:
@@ -311,9 +188,9 @@ class time_evolution:
         if auto_normalize:
             vector_coeffs /= numpy.linalg.norm(vector_coeffs)
 
-        vector_coo      = self.HamObj.compress_states(cupy.asarray(vector_coo))
+        vector_coo      = self.hamobj.compress_states(cupy.asarray(vector_coo))
 
-        self.vector     = self.use_module.zeros(len(self.whoami), dtype=self.HamObj.complex_type)
+        self.vector     = self.use_module.zeros(len(self.whoami), dtype=self.hamobj.complex_type)
         for i, coo in enumerate(vector_coo):
             index               = self.use_module.all(self.whoami == self.use_module.asarray(coo), axis=1).nonzero()[0][0]
             self.vector[index]  = vector_coeffs[i]
@@ -321,20 +198,28 @@ class time_evolution:
         if self.verbose:
             print("Done!")
 
-
     ###################################
     # generate sparse matrices
     ###################################
     def create_matrices(self, diag_params, COO_dict):
+        """
+        Turn the COO and value arrays into actual sparse matrices (in the CSR format).
+        
+        Why is this a part of TimeEvolution and not the Hamiltonian objects?
+        In part because it the latter never contain actual linear algebra objects,
+        only said COO and value arrays.
+        But, apart from that, the Hamiltonian "stuff" resides on whoami_device, whereas
+        the time evolution along with all of the other linear algebra reside on vector_device.
+        """
         self.sparse_mats_dict   = {term: self.use_module.sparse.coo_matrix(COO, shape=(self.numstates, self.numstates)).tocsr() for term, COO in COO_dict.items()}
         self.diag_vals          = diag_params
 
 
-    ###################################
-    # apply total Hamiltonian to a vector
-    # setting vector="ones" generates an everywhere-one input vector
-    ###################################
     def total_H(self, vector):
+        """
+        Apply total Hamiltonian H to a vector v and return the new vector Hv.
+        Setting vector="ones" generates an everywhere-one input vector.
+        """
         # diagonal terms are contained within the case distinction:
         if type(vector) is str and vector == "ones":
             B       = self.diag_vals
@@ -427,13 +312,14 @@ class time_evolution:
         dm_mindiff:             int, tells the cupy_search algorithm when to switch from a binary to a linear search (set to something between 10 and 100 for typical use).
         use_U_weight_delta_t:   float, the delta_t to use for the forward-looking part of the Hilbert subspace determination. 0 disables forward-looking.
         enlarge_steps:          int, the number of additional matrix elements to incorporate when determining the next Hilbert subspace. 0 takes only directly interacting basis states, 1 adds indirect interactions via 1 intermediate, 2 via 2 etc.
+
+
+        THIS STILL NEEDS TO BE REWRITTEN.
         """
         timeline_start_time = time.time()
         if self.verbose:
             print("Setting up generate_timeline function...")
-        header = format_function_args(inspect.currentframe(), timeline_start_time)
-        with open(self.params_file, 'a') as params_file:
-            params_file.write(header)
+        self.write_current_params_to_file(inspect.currentframe(), timeline_start_time)
 
         if save_every is not None or save_first or save_last:     # boring string formatting, no physics here
             smallest_val    = numpy.min(numpy.abs(t_array))
@@ -519,6 +405,8 @@ class time_evolution:
         Generate new Hilbert subspace from evolved vector using a cupy alternative to numpy.isin
         (the built-in cupy.isin method is very memory-inefficient).
         Completely agnostic of the Hilbert space.
+
+        THIS STILL NEEDS TO BE REWRITTEN.
         """
         # create the matrix elements if they don't exist:
         if diag_coo_debug is None:
@@ -666,7 +554,6 @@ class time_evolution:
     def first_order_U_importance_coherence(self, vector, delta_t):
         """
         Determine, more or less, the contribution of each basis state of |psi> to coherence it provides in the future.
-        Completely agnostic of the Hilbert space.
         """
         psi_squared = self.use_module.abs(vector)**2
     # the following is the original version, which, however, doesn't work, so use the other one as long as M is hermitian and real:
@@ -679,7 +566,6 @@ class time_evolution:
     def first_order_U_importance_norm(self, vector, delta_t):
         """
         Determine the contribution of each basis state of |psi> to the norm_squared of (1 - i δt H)|psi>.
-        Completely agnostic of the Hilbert space.
         """
         return self.use_module.abs(vector - 1j*delta_t * self.total_H(vector))
 

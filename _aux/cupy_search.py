@@ -8,7 +8,7 @@ import numpy
 import cupy
 
 if numpy.uintc != numpy.uint32:
-    raise TypeError("Well well well, who's working on a non-64 bit system? This code will explode if run on a system whose integer size is not 32 bits.")
+    raise TypeError("This code will not work on a system whose integer size is not 32 bits.")
 
 ####################################################################################################################################################################################
 

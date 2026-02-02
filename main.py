@@ -12,17 +12,6 @@ if os.path.dirname(sys.argv[0]) != '':
 
 ###################################################################################################################################################################################
 
-parser  = argparse.ArgumentParser(description="Parallelized multi-step dynamically adaptive (ParMuDA) basis set calculations of quantum dynamics")
-
-if False:
-    parser.add_argument("delta_eps", action="store",  help="delta_eps, specified as a string of three integers that are to be divided by 100 (e.g., input 075 is mapped to 0.75)")
-    parser.add_argument("--save_every", action="store", default=200, nargs='?', type=int, help="save every n-th wavefunction to storage, default 200")
-    parser.add_argument("--numstates", action="store", default=13e6, nargs='?', help="number of states to truncate to, default is 13e6")
-    args    = parser.parse_args()
-    if len(args.delta_eps) != deltadigits:
-        raise ValueError("delta_eps incomprehensible: " + args.delta_eps)
-
-
 debug_verb      = 6                 # verbosity, useful for debugging/diagnostics
 verbose         = True              # general verbosity, useful for keeping track of the progress
 
@@ -51,8 +40,7 @@ param_dict = {
 ###############################
 # Initial state position:
 initpos     = nchain//2
-# Percentage of total available states to
-# occupy with the initial basis set:
+# Proportion of maxstates to occupy with the initial basis set:
 fillfac     = 0.3
 
 ###############################
@@ -65,7 +53,8 @@ te_dict = dict(
     )
 
 prefix = "pos" if param_dict["hopping"]["J"] > 0 else "neg"
-dirname = "../adaptive_results/vib_gendatseg/%st_n%i_d%i_g%02i_coherence" % (prefix, nchain, max_HO_dim, int(param_dict["coupling"]['g']*10))
+dirname = "../adaptive_results/vib_gendatseg/%st_n%i_d%i_g%02i_coherence" % (prefix, nchain,
+                                                    max_HO_dim, int(param_dict["coupling"]['g']*10))
 
 ###############################
 # generate_timeline parameters:
@@ -116,10 +105,10 @@ with vector_device:
     ##############################################################
     # Create an initial basis set and initial vector:
 
-    te.create_nonuniform_basis([1,] * ((nchain-9)//2) + [1,2,4,15,50,15,4,2,1] + [1,] * ((nchain-9)//2), minpos=max(initpos-25, 0), maxpos=min(initpos+25, nchain))
-#    te.create_nonuniform_basis([1,]*nchain, minpos=initpos, maxpos=initpos+1)
-#    te.grow_optimal_basis(fillfac=fillfac)
-    te.create_initial_vector(vector_coeffs=[1], vector_coo=[[initpos,] + nchain*[0,]], auto_normalize=True)
+    te.create_nonuniform_basis([1,]*nchain, minpos=initpos, maxpos=initpos+1)
+    te.grow_optimal_basis(fillfac=fillfac)
+    te.create_initial_vector(vector_coeffs=[1], vector_coo=[[initpos,] + nchain*[0,]],
+                                auto_normalize=True)
 
     ##############################################################
     # Calculate the actual timeline:

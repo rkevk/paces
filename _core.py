@@ -11,24 +11,14 @@ import pprint
 import numpy
 import cupy
 import cupyx
-import _lh_aux.cupy_expm_multiply as cupy_expm_multiply
-import _lh_aux.cupy_search as cupy_search
-import _lh_aux.cupy_gendatseg_kernels as cupy_gendatseg_kernels
+import _aux.cupy_expm_multiply as cupy_expm_multiply
+import _aux.cupy_search as cupy_search
+import _aux.cupy_gendatseg_kernels as cupy_gendatseg_kernels
 
 from device_config import *
 
-#import logging
-
-#logging.basicConfig(filename="last_instance.log", filemode='w')
-
-#if os.path.dirname(sys.argv[0]) != '':
-#    os.chdir(os.path.dirname(sys.argv[0]))
-
-#for mod in (cupy, numpy):
-#    mod.set_printoptions(linewidth=200, edgeitems=10)
-
 if numpy.uintc != numpy.uint32:
-    raise TypeError("Well well well, who's working on a non-64 bit system? This code will explode if run on a system whose integer size is not 32 bits.")
+    raise TypeError("This code will not work on a system whose integer size is not 32 bits.")
 
 
 ###################################################################################################################################################################################
@@ -186,8 +176,6 @@ class HilbertSkeleton:
 
         self.dtype          = getattr(self.use_module, "uint%i" % self.wordsize)
 
-#        self.max_dim_Hilbert= self.nchain * numpy.prod(self.max_HO_dims)
-
         self.posbitwidth    = int(self.use_module.ceil(self.use_module.log2(self.nchain)))                          # this is a single int
         with vector_device:
             self.QHObitwidth_v  = cupy.ceil(cupy.log2(self.max_HO_dims_v)).astype(self.dtype)                       # this is a cupy array on vector_device
@@ -237,7 +225,6 @@ class HilbertSkeleton:
 
         if self.totwordwidth > 1:
             ud2             = "uint%i" % (2*self.wordsize)
-#            conv            = self.use_module.zeros((len(raw_basis_states), 1), dtype=ud2)
             conv            = raw_basis_states[:,0].astype(ud2) << (2*self.wordsize - self.posbitwidth)
             conv            = conv[None].T
             result[:,:2]    += conv.view(self.dtype)[:,::-1]
@@ -405,14 +392,6 @@ class HamiltonianTerms(HilbertSkeleton):
         # for convenience, define a dict with the diag terms removed:
         self.offdiag_terms  = {k: self.use_terms[k] for k in self.use_terms if k != "diag"}
 
-        # old stuff that may be required in the future:
-#        self.term_tuple     = tuple(self.use_terms.keys())  # keep a tuple of the names of the terms to have a guaranteed order for the keys
-#        if self.periodic:
-#            self.hopnum         = self.nchain
-#        else:
-#            self.hopnum         = self.nchain - 1
-
-
     ###################################
     # generate hopping matrix elements
     # general, private version first
@@ -539,8 +518,6 @@ class HamiltonianObject(HamiltonianTerms):
     # This is the heart of this object.
     ###################################
     def generate_mel(self, basis_states, enlarge_steps=0):
-#        if basis_states.shape[0] > self.maxstates:
-#            raise ValueError("Number of basis states exceeds maxstates.")
         if basis_states.shape[1] != self.totwordwidth:
             raise ValueError("Basis states do not match the number of bits specified at initialization.")
         for i in range(enlarge_steps):
@@ -559,8 +536,6 @@ class HamiltonianObject(HamiltonianTerms):
             totallen                    += len1 + len2
             if self.debug_verb > 2:
                 print("    b.%i: Determined %s indices." % (i+1, term))
-#                if item[2] in (Ellipsis, slice(None), True):
-#                    lenlist += [item[0].shape[0],]
 
         # Now create a new array to hold all of the new indices:
         all_inds                            = cupy.empty((totallen, basis_states.shape[1]), dtype=self.dtype)
@@ -574,12 +549,10 @@ class HamiltonianObject(HamiltonianTerms):
             midp                                = start+thislen[0]
             all_inds[start:midp]                = plus_triple[0][plus_triple[2]]
             all_inds[midp:midp+thislen[1]]      = minus_triple[0][minus_triple[2]]
-#                if item[2] in (Ellipsis, slice(None), True):
-#                    all_inds[start:start+lenlist[i]]    = item[0]
             start   += sum(thislen)
 
         if start != totallen:
-            raise ValueError("Fatal error that I shall not further specify because I want to annoy you.")
+            raise ValueError("Unknown error encountered while generating matrix elements.")
 
         # Remove duplicates within the new indices:
         new_inds        = cupy_unique(all_inds)
@@ -717,7 +690,7 @@ class HamiltonianObject(HamiltonianTerms):
             all_inds[midp:midp+thislen[1]]      = minus
             start   += sum(thislen)
         if start != totallen:
-            raise ValueError("Fatal error that I shall not further specify because I want to annoy you.")
+            raise ValueError("Unkown error encountered while expanding effective Hilbert space.")
 
         # Remove duplicates within the new indices:
         return cupy_unique(all_inds)
@@ -842,10 +815,6 @@ class time_evolution:
         if self.verbose:
             print("Creating initial basis set...", end=' ')
             sys.stdout.flush()
-#        if len(truncate_d_list) != self.HamObj.nchain:
-#            raise ValueError("Incorrect chain length.")
-#        if numpy.product(truncate_d_list) * self.HamObj.nchain > self.maxstates:
-#            raise ValueError("Number of states that would result from this value of truncate_d exceeds maxstates!")
         if maxval >= self.HamObj.max_HO_dims_v.max():
             raise ValueError("Specified basis truncation value exceeds the maximal max_HO_dims.")
         # print current basis creation to file
@@ -1086,7 +1055,6 @@ class time_evolution:
     def calculate_reduced_dm(self, vector, mindiff=32):
         raise NotImplementedError("The reduced density matrix calculation has not yet been converted to the generalized data segmentation.")
         upper_tri   = self.use_module.zeros((self.HamObj.nchain, self.HamObj.nchain), dtype=self.HamObj.complex_type)
-#        cupy.save("last_whoami", self.whoami)
         # use the fact that whoami is lexicographically sorted to determine the break points between the different indices:
         indli       = cupy_search.find_changes_local_single(self.whoami[:,0]).tolist() + [len(self.whoami),]
         lci         = 0
@@ -1104,7 +1072,6 @@ class time_evolution:
                     upper_tri[left_i, right_i] = cupy.vdot(left_vec, left_vec)
                 elif rci >= len(indli) - 1:
                     break
-#                print(left_i, right_i)
                 else:
                     if self.whoami[indli[rci]][0] != right_i:    # if there is no basis state corresponding to the requested index, skip the iteration
                         print("(%i, %i) not found. rci, location: %i, %i" % (left_i, right_i, rci, self.whoami[indli[rci]][0]))
@@ -1118,22 +1085,15 @@ class time_evolution:
                     # all(right_side[searchsorted(...)] == left_side, axis=1) is a mask that is true only where the values of left_side occur exactly in right_side
                     t0 = time.time()
                     left_search     = cupy_search.searchsorted_multidim_list(left_side, right_side, allow_escapes=True, linear_only=False, mindiff=mindiff)
-#                    cupy.cuda.Stream.null.synchronize()
                     if self.debug_verb > searchsorted_multidim_list_timing_level:
                         t1 = time.time()
                         print("This application of searchsorted_multidim_list took %f ms (arg sizes %i, %i)." % ((t1-t0)*1000, left_side.shape[0], right_side.shape[0]))
 
-#                    mask    = left_search < len(left_vec)
-#                    upper_tri[left_i, right_i] = ((left_vec[left_search[mask]] * self.use_module.conj(right_vec[mask]))[cupy.all(left_side[left_search[mask]] == right_side[mask], axis=1)]).sum()
                     upper_tri[left_i, right_i] = ((left_vec[left_search] * self.use_module.conj(right_vec))[cupy.all(left_side[left_search] == right_side, axis=1)]).sum()
                     del left_search, right_side
                     mempool.free_all_blocks()
 
-#                    upper_tri[left_i, right_i] = (vector[left_inds][self.use_module.isin(self.whoami[:,1][left_inds], self.whoami[:,1][right_inds], assume_unique=True)] *
-#                            self.use_module.conj(vector[right_inds][self.use_module.isin(self.whoami[:,1][right_inds], self.whoami[:,1][left_inds], assume_unique=True)])).sum()
-#                upper_tri[left_i, right_i] = (vector[self.whoami[:,0] == left_i] * self.use_module.conj(vector[self.whoami[:,0] == right_i])).sum()
         reduced_dm  = upper_tri + self.use_module.conj(self.use_module.triu(upper_tri, 1).T)
-#        cupy.save("sec_to_last_whoami", self.whoami)
         return reduced_dm
 
     ###################################
@@ -1160,12 +1120,6 @@ class time_evolution:
     # compute avg. HO occs of a given vector
     ###################################
     def calculate_bath_n_b(self, vector):
-        # old version, slow:
-#        result  = self.use_module.zeros(self.HamObj.nchain)
-#        weights = self.use_module.abs(vector)**2
-#        for i in range(self.HamObj.nchain):
-#            result[i]   = self.HamObj.get_phonon_occ(self.whoami, i).dot(weights)
-#        return result
         weights = cupy.abs(vector)**2
         return cupy_gendatseg_kernels.calculate_bath_n_b(weights, cupy.asarray(self.whoami), self.HamObj.posbitwidth, self.HamObj.QHObitwidth_v, self.HamObj.wordsize)
 
@@ -1316,7 +1270,6 @@ class time_evolution:
                 print("Check 2.1: Determining next Hilbert subspace.")
             if vector_device != whoami_device and use_two_streams:
                 whoami_stream.synchronize()
-#                prepare_results = cupy.asarray(prepare_results)
             ceiling_hits, post_adapt_norm, post_adapt_H     = self.generate_new_Hilbert_space_cupy( vector,
                                                                                                     enlarge_steps=enlarge_steps,
                                                                                                     garbage_tol=garbage_tol,
@@ -1325,7 +1278,6 @@ class time_evolution:
                                                                                                     delta_t=use_U_weight_delta_t,
                                                                                                     diag_coo_debug=diag_coo_debug,
                                                                                                     impstates=impstates)
-#                ceiling_hits, post_adapt_norm, post_adapt_H     = self.generate_new_Hilbert_space_cupy(vector, garbage_tol=garbage_tol, do_fancy_stuff="diagnostics" in observables, use_U_weight_function=(use_U_weight_function and delta_t != 0), delta_t=0.2)
             if self.debug_verb > 0:
                 print("Check 2.2: Finished determining next Hilbert subspace.")
             if t == 0:
@@ -1443,8 +1395,6 @@ class time_evolution:
                 self.use_module.save(wf_name_list[i], vector)
                 self.use_module.save(wf_name_list[i].replace("wf_file_", "whoami_"), self.whoami)   # this works even if self.whoami is not on current_device
             if "diagnostics" in observables:
-#   new format:
-#                diag_file.write(b"#tag norm seconds_since_start post_adapt_norm post_adapt_H expm_converged final_m final_expm_term rel_error_expm numstates ceiling_hits\n")
                 with open(os.path.join(self.dirname, "diagnostics.log"), fmode_dict["diagnostics"]) as diag_file:
                     if t == 0:
                         numpy.savetxt(diag_file, [t, norm, time.time() - timeline_start_time, post_adapt_norm, post_adapt_H, 0, 0, 0, 0, self.numstates, 0], newline=" ")
@@ -1504,7 +1454,6 @@ class time_evolution:
         if self.debug_verb > 2:
             print("    Norm prior to reassignment: %f." % cupy.linalg.norm(vector))
         new_vector          = self.use_module.zeros(self.numstates, dtype=self.HamObj.complex_type)
-#        nv                  = new_vector.copy()
         t0 = time.time()
         ind_array           = self.HamObj.searchsorted(self.whoami, new_inds, allow_escapes=True)
         mask_array          = cupy.all(self.whoami[ind_array] == new_inds, axis=1)        # True only where an old value can be copied, i.e. new is in old
@@ -1512,7 +1461,6 @@ class time_evolution:
             t1 = time.time()
             print("This application of searchsorted (and masking) took %f ms (arg sizes %i, %i)." % ((t1-t0)*1000, self.whoami.shape[0], new_inds.shape[0]))
             t0 = time.time()
-#        new_vector[mask_array]  = vector[cupy.all(new_inds[cupy_search.searchsorted_multidim_list(new_inds, self.whoami, allow_escapes=True, mindiff=mindiff)] == self.whoami, axis=1)]       # assign common values to positions
 
         new_vector[mask_array]  = vector[ind_array][mask_array]     # assign common values to positions
         del mask_array, ind_array
@@ -1584,7 +1532,6 @@ class time_evolution:
 
             select_whoami                   = self.use_module.zeros((self.maxstates, self.whoami.shape[1]), dtype=self.whoami.dtype)
             select_whoami[-indfromback:]    = sorted_whoami[-indfromback:]
-#            assert cupy.all(sorted_vector[firstind:lastind] == sorted_vector[firstind])
             select_whoami[:-indfromback]    = cupy.random.permutation(sorted_whoami[firstind:lastind])[:self.maxstates-indfromback]
             if garbage_tol >= 0:
                 raise NotImplementedError("garbage_tol combined with equal-value shuffling has not yet been implemented.")
@@ -1593,7 +1540,6 @@ class time_evolution:
         select_whoami       = self.use_module.array(select_whoami[self.use_module.lexsort(select_whoami.T[::-1])])
         mempool.free_all_blocks()
 
-#        max_bath_pre = select_whoami[:,1:].max()
         return select_whoami, select_whoami.shape[0] #, max_bath_pre
 
 
@@ -1605,8 +1551,6 @@ class time_evolution:
         Determine, more or less, the contribution of each basis state of |psi> to coherence it provides in the future.
         """
         psi_squared = self.use_module.abs(vector)**2
-    # the following is the original version, which, however, doesn't work, so use the other one as long as M is hermitian and real:
-#        return psi_squared + (delta_t**2) * psi_squared * (self.use_module.ones(self.numstates).dot(self.sparse_coupling) + self.use_modules.ones(self.numstates).dot(self.sparse_hopping) + self.diag_vals)**2
         return psi_squared + (delta_t**2) * psi_squared * self.use_module.power(self.total_H("ones"), 2)
 
     ###################################

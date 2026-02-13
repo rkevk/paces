@@ -1,0 +1,9 @@
+# Do not sync active device_config.py;
+# instead, let the user set up device_config.py from the template
+device_config.py
+
+# out.png and out.gv are created by code2flow; we don't want this
+out.*
+
+# __pycache__ contains auxiliary files generated at runtime
+__pycache__/

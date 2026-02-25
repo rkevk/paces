@@ -20,14 +20,14 @@ Choose a model to run from the `models` submodule and then do the following:
 
 ### Initial (one-time) setup:
 After having ensured that the dependencies are met:
-Copy `paces/config/device_config_template.py` to `paces/config/device_config.py`
+Clone this repository, then copy `paces/config/device_config_template.py` to `paces/config/device_config.py`
 and make necessary changes to the `device_config` file in line with your system setup (number of GPUs, memory).
-The `device_config` file and any changes made to it will not be synced via git.
+If you choose to push commits later on, the `device_config` file and any changes made to it will be excluded (via `.gitignore`).
 
 ### Per-calculation setup:
 As an example, let the working directory of our shell be the directory containing this `README.md`
 and say we want to store our files in `../parent_dir/main_calc_dir`.
-We will use the example file `main_example.py` (a single-exciton 1D Holstein chain):
+We will run the example calculation given in `main_example.py` (a single-exciton 1D Holstein chain).
 
 Then the steps are:
 1. Ensure that `../parent_dir` already exists.

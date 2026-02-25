@@ -1,74 +1,58 @@
 """Compute the action of the matrix exponential.
 """
 
-from __future__ import division, print_function, absolute_import
-
 import numpy as np
 
-#import scipy.linalg
-#import scipy.sparse.linalg
-#from scipy.sparse.linalg import aslinearoperator
-#from scipy.sparse.sputils import is_pydata_spmatrix
+import cupy     # pylint: disable=import-error
+import cupyx    # pylint: disable=import-error
 
-import cupy
-import cupyx
+from ._onenormest import onenormest
 
-__all__ = ['expm_multiply']
+__all__ = ['expm_multiply', 'expm_multiply_simple']
 
 
 def _exact_inf_norm(A):
     # A compatibility function which should eventually disappear.
-    if scipy.sparse.isspmatrix(A):
-        return max(abs(A).sum(axis=1).flat)
-    elif is_pydata_spmatrix(A):
-        return max(abs(A).sum(axis=1))
-    else:
-        return np.linalg.norm(A, np.inf)
-
-def cupy_exact_inf_norm(A):
-#    print(type(A))
     if cupyx.scipy.sparse.isspmatrix(A):
         return max(abs(A).sum(axis=1).flat)
-    elif type(A) == cupy.ndarray:
+    elif isinstance(A, cupy.ndarray):
        return cupy.linalg.norm(A, np.inf)
     else:
         raise TypeError("Got an unexpected type while calculating the supremum norm.")
 
 def _exact_1_norm(A):
     # A compatibility function which should eventually disappear.
-    if scipy.sparse.isspmatrix(A):
+    if cupyx.scipy.sparse.isspmatrix(A):
         return max(abs(A).sum(axis=0).flat)
-    elif is_pydata_spmatrix(A):
-        return max(abs(A).sum(axis=0))
+    elif isinstance(A, cupy.ndarray):
+        return cupy.linalg.norm(A, 1)
     else:
-        return np.linalg.norm(A, 1)
-
+        raise TypeError("Got an unexpected type while calculating the 1 norm.")
 
 def _trace(A):
     # A compatibility function which should eventually disappear.
-    if scipy.sparse.isspmatrix(A):
+    if cupyx.scipy.sparse.isspmatrix(A):
         return A.diagonal().sum()
-    elif is_pydata_spmatrix(A):
-        return A.to_scipy_sparse().diagonal().sum()
+    elif isinstance(A, cupy.ndarray):
+        return cupy.trace(A)
     else:
-        return np.trace(A)
+        raise TypeError("Got an unexpected type while calculating the trace.")
 
 
 def _ident_like(A):
     # A compatibility function which should eventually disappear.
-    if scipy.sparse.isspmatrix(A):
-        return scipy.sparse.construct.eye(A.shape[0], A.shape[1],
+    if cupyx.scipy.sparse.isspmatrix(A):
+        return cupyx.scipy.sparse.eye(A.shape[0], A.shape[1],
                 dtype=A.dtype, format=A.format)
-    elif is_pydata_spmatrix(A):
-        import sparse
-        return sparse.eye(A.shape[0], A.shape[1], dtype=A.dtype)
+    elif isinstance(A, cupy.ndarray):
+        return cupy.eye(A.shape[0], A.shape[1], dtype=A.dtype)
     else:
-        return np.eye(A.shape[0], A.shape[1], dtype=A.dtype)
+        raise TypeError("Got an unexpected type while constructing the identity matrix.")
 
 
 def expm_multiply(A, B, start=None, stop=None, num=None, endpoint=None, return_debug=False):
     """
-    Compute the action of the matrix exponential of A on B.
+    Compute the action of the matrix exponential of A on B. See scipy.sparse.linalg.expm_multiply.
 
     Parameters
     ----------
@@ -93,24 +77,6 @@ def expm_multiply(A, B, start=None, stop=None, num=None, endpoint=None, return_d
     expm_A_B : ndarray
          The result of the action :math:`e^{t_k A} B`.
 
-    Notes
-    -----
-    The optional arguments defining the sequence of evenly spaced time points
-    are compatible with the arguments of `numpy.linspace`.
-
-    The output ndarray shape is somewhat complicated so I explain it here.
-    The ndim of the output could be either 1, 2, or 3.
-    It would be 1 if you are computing the expm action on a single vector
-    at a single time point.
-    It would be 2 if you are computing the expm action on a vector
-    at multiple time points, or if you are computing the expm action
-    on a matrix at a single time point.
-    It would be 3 if you want the action on a matrix with multiple
-    columns at multiple time points.
-    If multiple time points are requested, expm_A_B[0] will always
-    be the action of the expm at the first time point,
-    regardless of whether the action is on a vector or a matrix.
-
     References
     ----------
     .. [1] Awad H. Al-Mohy and Nicholas J. Higham (2011)
@@ -125,41 +91,19 @@ def expm_multiply(A, B, start=None, stop=None, num=None, endpoint=None, return_d
            Acta Numerica,
            19. 159-208. ISSN 0962-4929
            http://eprints.ma.man.ac.uk/1451/
-
-    Examples
-    --------
-    >>> from scipy.sparse import csc_matrix
-    >>> from scipy.sparse.linalg import expm, expm_multiply
-    >>> A = csc_matrix([[1, 0], [0, 1]])
-    >>> A.todense()
-    matrix([[1, 0],
-            [0, 1]], dtype=int64)
-    >>> B = np.array([np.exp(-1.), np.exp(-2.)])
-    >>> B
-    array([ 0.36787944,  0.13533528])
-    >>> expm_multiply(A, B, start=1, stop=2, num=3, endpoint=True)
-    array([[ 1.        ,  0.36787944],
-           [ 1.64872127,  0.60653066],
-           [ 2.71828183,  1.        ]])
-    >>> expm(A).dot(B)                  # Verify 1st timestep
-    array([ 1.        ,  0.36787944])
-    >>> expm(1.5*A).dot(B)              # Verify 2nd timestep
-    array([ 1.64872127,  0.60653066])
-    >>> expm(2*A).dot(B)                # Verify 3rd timestep
-    array([ 2.71828183,  1.        ])
     """
     if all(arg is None for arg in (start, stop, num, endpoint)) and return_debug:
-        return _expm_multiply_simple(A, B, return_debug=return_debug)
+        return expm_multiply_simple(A, B, return_debug=return_debug)
         # this will return X, converged, final_m, c1, c1/_exact_inf_norm(F)
 
     elif all(arg is None for arg in (start, stop, num, endpoint)) and not return_debug:
-        X = _expm_multiply_simple(A, B)
+        X = expm_multiply_simple(A, B)
     else:
         X, status = _expm_multiply_interval(A, B, start, stop, num, endpoint)
     return X
 
 
-def _expm_multiply_simple(A, B, t=1.0, balance=False, return_debug=False):
+def expm_multiply_simple(A, B, t=1.0, balance=False, return_dbg=False):
     """
     Compute the action of the matrix exponential at a single time point.
 
@@ -173,11 +117,22 @@ def _expm_multiply_simple(A, B, t=1.0, balance=False, return_debug=False):
         A time point.
     balance : bool
         Indicates whether or not to apply balancing.
+    return_dbg : bool
+        If True, additional debugging/diagnostic information is returned.
 
     Returns
     -------
     F : ndarray
         :math:`e^{t A} B`
+    If return_dbg, then the following are also returned *as a separate tuple*:
+    converged : bool
+        If True, the algorithm converged; if False, then it exhausted the maximal order.
+    final_m : int
+        The final order of the expansion.
+    c1_plus_c2 : complex
+        The sum of the last two terms in the series.
+    term_ratio : complex
+        The relative contribution of the last two terms to the result, measured by the inf norm.
 
     Notes
     -----
@@ -209,17 +164,15 @@ def _expm_multiply_simple(A, B, t=1.0, balance=False, return_debug=False):
         ell = 2
         norm_info = LazyOperatorNormInfo(t*A, A_1_norm=t*A_1_norm, ell=ell)
         m_star, s = _fragment_3_1(norm_info, n0, tol, ell=ell)
-    return _expm_multiply_simple_core(A, B, t, mu, m_star, s, tol, balance, return_debug=return_debug)
+    return _expm_multiply_simple_core(A, B, t, mu, m_star, s, tol, balance, return_dbg=return_dbg)
 
 
-def _expm_multiply_simple_core(A, B, t, mu, m_star, s, tol=None, balance=False, return_debug=False):
+def _expm_multiply_simple_core(A, B, t, mu, m_star, s, tol=None, return_debug=False):
     """
     A helper function.
     """
     converged   = False             # added
     final_m     = 0                 # added
-    if balance:
-        raise NotImplementedError
     if tol is None:
         u_d = 2 ** -53
         tol = u_d
@@ -233,107 +186,20 @@ def _expm_multiply_simple_core(A, B, t, mu, m_star, s, tol=None, balance=False, 
             B = coeff * A.dot(B)
             c2 = _exact_inf_norm(B)
             F = F + B
-            if c1 + c2 <= tol * _exact_inf_norm(F):
-                converged = True    # added
-                break
-            c1 = c2
-        F = eta * F
-        B = F
-    if return_debug:
-        return F, converged, final_m, c1, c1/_exact_inf_norm(F)
-    else:
-        return F
-
-
-def setup_for_cupy(A, dim_Hilbert, debug=False, use_mu=True):
-    """
-    Generate the other stuff that is needed to run cupy_expm_multiply_simple_core, but do so outside of cupy.
-    The point is to compute this only once and feed this data to cupy_expm_multiply_simple_core, since only B should change and not A.
-    """
-    t = 1.0
-    if len(A.shape) != 2 or A.shape[0] != A.shape[1]:
-        raise ValueError('expected A to be like a square matrix')
-    if A.shape[1] != dim_Hilbert:
-        raise ValueError('the matrices A and B have incompatible shapes')
-    if debug:
-        print("Check 1.")
-    n = A.shape[0]
-    u_d = 2**-53
-    tol = u_d
-    if debug:
-        print("Check 2.")
-    if use_mu:
-        ident = _ident_like(A)
-        mu = _trace(A) / float(n)
-        A = A - mu * ident
-    else:
-        mu = 0
-    if debug:
-        print("Check 3.")
-    A_1_norm = _exact_1_norm(A)
-    if debug:
-        print("Check 4.")
-    if t*A_1_norm == 0:
-        m_star, s = 0, 1
-    else:
-        ell = 2
-        norm_info = LazyOperatorNormInfo(t*A, A_1_norm=t*A_1_norm, ell=ell)
-        if debug:
-            print("Check 5.")
-        m_star, s = _fragment_3_1(norm_info, 1, tol, ell=ell)
-#    return _expm_multiply_simple_core(A, B, t, mu, m_star, s, tol, balance, return_debug=return_debug)
-    if debug:
-        print("Check 6.")
-    return mu, m_star, s, tol, A
-
-
-def cupy_expm_multiply_simple_core(A, B, mu, m_star, s, t=1.0, tol=None, diagnostics=False, debug=False):
-    """
-    Does the same thing as _expm_multiply_simple_core, but cupyx-compatibly
-    """
-    converged   = False             # added
-    final_m     = 0                 # added
-    if tol is None:
-        u_d = 2 ** -53
-        tol = u_d
-    F = B
-    if debug:
-        print("Check 1.")
-    eta = np.exp(mu / float(s))     # mu is the trace of -iHδt, or 0 (!)
-    for i in range(s):
-        c1 = cupy_exact_inf_norm(B)
-        if debug:
-            print("Check 2.")
-        for j in range(m_star):
-            final_m += 1            # added
-            coeff = t / float(s*(j+1))
-            if debug:
-                print("Check 3.")
-            B = coeff * A.dot(B)
-            if debug:
-                print("Check 4.")
-            c2 = cupy_exact_inf_norm(B)
-            if debug:
-                print("Check 5.")
-            F = F + B
             c1_plus_c2 = c1 + c2
-            if c1_plus_c2 <= tol * cupy_exact_inf_norm(F):
+            term_ratio = c1_plus_c2/_exact_inf_norm(F)
+            if term_ratio <= tol:
                 converged = True    # added
                 break
-            if debug:
-                print("Check 6.")
             c1 = c2
-        if mu != 0:
+        if eta != 1:
             F = eta * F
-        if debug:
-            print("Check 7.")
         B = F
     del B
-    if diagnostics:                 # added
-        return F, converged, final_m, c1_plus_c2, c1_plus_c2/_exact_inf_norm(F)
+    if return_debug:
+        return F, (converged, final_m, c1_plus_c2, term_ratio)
     else:
         return F
-
 
 # This table helps to compute bounds.
 # They seem to have been difficult to calculate, involving symbolic
@@ -419,10 +285,7 @@ def _onenormest_matrix_power(A, p,
         that is relatively large in norm compared to the input.
 
     """
-    #XXX Eventually turn this into an API function in the  _onenormest module,
-    #XXX and remove its underscore,
-    #XXX but wait until expm_multiply goes into scipy.
-    return scipy.sparse.linalg.onenormest(aslinearoperator(A) ** p)
+    return onenormest(aslinearoperator(A) ** p)
 
 class LazyOperatorNormInfo:
     """
@@ -767,7 +630,7 @@ def _expm_multiply_interval_core_1(A, X, h, mu, m_star, s, q, tol):
     d = q // s
     input_shape = X.shape[1:]
     K_shape = (m_star + 1, ) + input_shape
-    K = np.empty(K_shape, dtype=X.dtype)
+    K = cupy.empty(K_shape, dtype=X.dtype)
     for i in range(s):
         Z = X[i*d]
         K[0] = Z
@@ -798,7 +661,7 @@ def _expm_multiply_interval_core_2(A, X, h, mu, m_star, s, q, tol):
     r = q - d * j
     input_shape = X.shape[1:]
     K_shape = (m_star + 1, ) + input_shape
-    K = np.empty(K_shape, dtype=X.dtype)
+    K = cupy.empty(K_shape, dtype=X.dtype)
     for i in range(j + 1):
         Z = X[i*d]
         K[0] = Z

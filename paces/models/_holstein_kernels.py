@@ -1,55 +1,97 @@
-#!/usr/bin/env python3
-# coding: utf-8
- 
-import timeit
-import time
+"""Kernels and related low-level functions used for the 1D single-exciton Holstein model."""
+
 import numpy
+import cupy     # pylint: disable=import-error
 
-import cupy
-import cupyx
+####################################################################################################
 
-###################################################################################################################################################################################
-
-def add_phonon_at_exc(basis_states, posbitwidth, QHObitwidth, wordsize=32):
+def add_phonon_at_exc(basis_states, posbitwidth, qhobitwidth, wordsize=32):
     """
-    Takes a (compressed) array basis_states and, for each of the states therein, adds a single phonon to the site occupied by the exciton.
+    Add one phonon at the site of the exciton across the entire set of states.
+
     This is done in-place, without creating a copy of basis_states.
-    Handles inter-byte rollovers, but does not handle under- or overflows.
+    Handles inter-word rollovers, but does not handle under- or overflows.
+
+    Args:
+        basis_states (array): (compressed) array of basis states of the Holstein model.
+        posbitwidth (int): number of leading bits allocated to the position of the exciton.
+        qhobitwidth (array): number of bits allocated to each phononic mode.
+        wordsize (int): The wordsize that basis_states is given in. Default: 32.
     """
-    _gen_phonon_at_exc(basis_states, posbitwidth, QHObitwidth, wordsize).add()
+    # XXX this way of creating new instances all the time seems might be improved upon
+    _GenPhononAtExc(basis_states, posbitwidth, qhobitwidth, wordsize).add()
 
 
-def rem_phonon_at_exc(basis_states, posbitwidth, QHObitwidth, wordsize=32):
+def rem_phonon_at_exc(basis_states, posbitwidth, qhobitwidth, wordsize=32):
     """
-    Takes a (compressed) array basis_states and, for each of the states therein, removes a single phonon to the site occupied by the exciton.
+    Remove one phonon at the site of the exciton across the entire set of states.
+
     This is done in-place, without creating a copy of basis_states.
-    Handles inter-byte rollovers, but does not handle under- or overflows.
+    Handles inter-word rollovers, but does not handle under- or overflows.
+
+    Args:
+        basis_states (array): (compressed) array of basis states of the Holstein model.
+        posbitwidth (int): number of leading bits allocated to the position of the exciton.
+        qhobitwidth (array): number of bits allocated to each phononic mode.
+        wordsize (int): The wordsize that basis_states is given in. Default: 32.
     """
-    _gen_phonon_at_exc(basis_states, posbitwidth, QHObitwidth, wordsize).subtract()
+    _GenPhononAtExc(basis_states, posbitwidth, qhobitwidth, wordsize).subtract()
 
 
-def get_phonon_at_exc(basis_states, posbitwidth, QHObitwidth, wordsize=32):
+def get_phonon_at_exc(basis_states, posbitwidth, qhobitwidth, wordsize=32):
     """
-    Takes a (compressed) array basis_states of shape (M, N) and returns a new array of shape (M,) containing the occupation number at the site occupied by the excitation.
+    Return an array indicating the phonon occupation number at the site occupied by the exciton.
+
+    Args:
+        basis_states (array): (compressed) array of basis states of the Holstein model.
+        posbitwidth (int): number of leading bits allocated to the position of the exciton.
+        qhobitwidth (array): number of bits allocated to each phononic mode.
+        wordsize (int): The wordsize that basis_states is given in. Default: 32.
+
+    Returns:
+        pops (1D array): phonon occupation numbers. Length of array equals that of basis_states.
     """
-    return _gen_phonon_at_exc(basis_states, posbitwidth, QHObitwidth, wordsize).get_occ()
+    return _GenPhononAtExc(basis_states, posbitwidth, qhobitwidth, wordsize).get_occ()
 
 
-def sum_all_phonons(omega_arr, basis_states, posbitwidth, QHObitwidth, wordsize=32):
+def sum_all_phonons(omega_arr, basis_states, posbitwidth, qhobitwidth, wordsize=32):
     """
-    Takes a (compressed) array basis_states of shape (M, N) together with an array omega_arr of shape (N,) and returns a new array of shape (M,) containing the sum of all QHO energies for the given basis state.
-    If all(omega_arr == 1), this is simply equal to the sum of all occupation numbers for each basis state.
+    Return an array indicating the sum of all QHO energies for each basis state.
+
+    If all(omega_arr == 1), then this is simply the sum of all occupation numbers for each row.
+
+    Args:
+        omega_arr (1D array): energy of each oscillator.
+            The shape must be compatible with the width of basis_states.
+        basis_states (array): (compressed) array of basis states of the Holstein model.
+        posbitwidth (int): number of leading bits allocated to the position of the exciton.
+        qhobitwidth (array): number of bits allocated to each phononic mode.
+        wordsize (int): The wordsize that basis_states is given in. Default: 32.
+
+    Returns:
+        energies (1D array): phonon occupation numbers. Length of array equals that of basis_states.
     """
-    return _gen_phonon_at_exc(basis_states, posbitwidth, QHObitwidth, wordsize).sum_all(omega_arr)
+    return _GenPhononAtExc(basis_states, posbitwidth, qhobitwidth, wordsize).sum_all(omega_arr)
 
 
-def calculate_bath_n_b(weights, basis_states, posbitwidth, QHObitwidth, wordsize=32):
+def calculate_bath_n_b(weights, basis_states, posbitwidth, qhobitwidth, wordsize=32):
     """
-    Takes a (compressed) array basis_states of shape (M, N) and returns a new array of shape (N,) containing the expectation value of the bath occupation number at each site.
-    """
-    return _gen_all_phonon(basis_states, posbitwidth, QHObitwidth, wordsize).bath_n_b(weights)
+    Return an array indicating the expectation value of the bath occupation number at each site.
 
-###################################################################################################################################################################################
+    Args:
+        weights (1D array): The oscillators will be weighted individually by this array.
+            The shape must be compatible with the width of basis_states.
+        basis_states (array): (compressed) array of basis states of the Holstein model.
+        posbitwidth (int): number of leading bits allocated to the position of the exciton.
+        qhobitwidth (array): number of bits allocated to each phononic mode.
+        wordsize (int): The wordsize that basis_states is given in. Default: 32.
+
+    Returns:
+        expvals (1D array): phonon occupation numbers. Length of array equals the number of QHOs.
+    """
+    return _GenAllPhonon(basis_states, posbitwidth, qhobitwidth, wordsize).bath_n_b(weights)
+
+####################################################################################################
 # CUDA code snippets:
 
 _gpu_add32_prefix = r'''
@@ -83,7 +125,8 @@ _gpu_add32_core = r'''
             // add an appropriately bit-shifted 1 to the first or second word:
             bs[arrind + (num2bits[pos] > 32u)] += 1u << ((num2bits[pos] > 32u)*32u + 32u - num2bits[pos]);
 
-            // if the addition was to the second word and caused an overflow there, add 1 to the first word:
+            // if the addition was to the second word and caused an overflow there,
+            // then add 1 to the first word:
             if ( (num2bits[pos] > 32u) && ((bs[arrind+1] >> (64u-num2bits[pos])) == 0) ) {
                 bs[arrind]      += 1;
             }
@@ -104,7 +147,8 @@ _gpu_rem32 = r'''
             unsigned int pos    = bs[tid*rowlen] >> (32u-bit_offset[0]);
             unsigned int arrind = tid*rowlen + word_i[pos];
 
-            // if the subtraction is from the second word and would cause and underflow there, subtract 1 from the first word and bit-flip zeros in second word:
+            // if the subtraction is from the second word and would cause and underflow there,
+            // then subtract 1 from the first word and bit-flip zeros in second word:
             if ( (num2bits[pos] > 32u) && ((bs[arrind+1] >> (64u-num2bits[pos])) == 0) ) {
                 bs[arrind]      -= 1;
                 bs[arrind+1]    += (~0u << (64u-num2bits[pos]));
@@ -222,7 +266,7 @@ _gpu_calc_n_b32 = r'''
     }
     '''
 
-###################################################################################################################################################################################
+####################################################################################################
 # kernel definitions:
 
 _add_pte_kernel         = cupy.RawKernel(_gpu_add32_prefix + _gpu_add32_core, "add_pte_kernel")
@@ -235,31 +279,40 @@ _sum_occ_pte_kernel     = cupy.RawKernel(_gpu_sum32, "sum_occ_pte_kernel")
 
 _calc_bath_n_b_kernel   = cupy.RawKernel(_gpu_calc_n_b32, "calc_bath_n_b_kernel", backend="nvcc")
 
-###################################################################################################################################################################################
+####################################################################################################
 # the central class that ties together all of the functions provided by this script:
 
-class _gendatseg_base:
-    def __init__(self, basis_states, posbitwidth, QHObitwidth, wordsize=32):
-        if basis_states.dtype != "uint%i" % wordsize:
-            raise ValueError("dtype of input (%s) does not match specified wordsize (%i bits)." % (basis_states.dtype, wordsize))
-        if basis_states.shape[1] != numpy.ceil((posbitwidth + QHObitwidth.sum())/wordsize):
+class _GenDatSegBase:
+    def __init__(self, basis_states, posbitwidth, qhobitwidth, wordsize=32):
+        if basis_states.dtype != f"uint{wordsize}":
+            raise ValueError(f"dtype of input ({basis_states.dtype}) does not match"
+                                f"specified wordsize ({wordsize} bits).")
+        if basis_states.shape[1] != numpy.ceil((posbitwidth + qhobitwidth.sum())/wordsize):
             raise ValueError("Shape of input states does not match bin sizes.")
         if not basis_states.flags["C_CONTIGUOUS"]:
-            raise ValueError("The gendatseg routines only work with C-contiguous basis_states arrays (consider calling cupy.ascontiguousarray() on the input array first).")
+            raise ValueError("The gendatseg routines only work with"
+                        " C-contiguous basis_states arrays"
+                        " (consider calling cupy.ascontiguousarray() on the input array first).")
 
-        bit_offset      = (posbitwidth + QHObitwidth.cumsum() - QHObitwidth).astype("uint%i" % wordsize)    # index of first relevant bit for each QHO
-        word_i          = bit_offset // wordsize                                                            # index of first word containing the block
-        num2bits        = bit_offset + QHObitwidth - wordsize*word_i                                        # wordsize + number of relevant bits contained in word_i+1 (num2bits == wordsize is "zero")
+        # index of first relevant bit for each QHO:
+        bit_offset  = (posbitwidth + qhobitwidth.cumsum() - qhobitwidth).astype(f"uint{wordsize}")
+        # index of first word containing the block:
+        word_i      = bit_offset // wordsize
+        # wordsize + number of relevant bits contained in word_i+1 (num2bits == wordsize is "zero"):
+        num2bits    = bit_offset + qhobitwidth - wordsize*word_i
 
         threads_per_block   = 256
         blocks              = numpy.ceil(basis_states.shape[0]/threads_per_block).astype(int)
 
-        self.funcargs       = [(blocks,), (threads_per_block,), [basis_states, bit_offset, word_i, num2bits, *[cupy.uint32(i) for i in basis_states.shape]]]
+        self.funcargs       = [(blocks,), (threads_per_block,),
+                                [basis_states, bit_offset, word_i, num2bits,
+                                *[cupy.uint32(i) for i in basis_states.shape]]]
         self.wordsize       = wordsize
-        self.numsites       = len(QHObitwidth)
+        self.numsites       = len(qhobitwidth)
 
-class _gen_phonon_at_exc(_gendatseg_base):
+class _GenPhononAtExc(_GenDatSegBase):
     def add(self):
+        """See global function add_phonon_at_exc."""
         if self.wordsize == 32:
             _add_pte_kernel(*self.funcargs)
         else:
@@ -267,6 +320,7 @@ class _gen_phonon_at_exc(_gendatseg_base):
 
 
     def subtract(self):
+        """See global function rem_phonon_at_exc."""
         if self.wordsize == 32:
             _remove_pte_kernel(*self.funcargs)
         else:
@@ -274,16 +328,19 @@ class _gen_phonon_at_exc(_gendatseg_base):
 
 
     def get_occ(self):
-        result          = cupy.zeros(int(self.funcargs[2][-2]), dtype="uint%i" % self.wordsize)
+        """See global function get_phonon_at_exc."""
+        result          = cupy.zeros(int(self.funcargs[2][-2]), dtype=f"uint{self.wordsize}")
         self.funcargs[2] += [result,]
         if self.wordsize == 32:
             _get_occ_pte_kernel(*self.funcargs)
         else:
             raise NotImplementedError("wordsizes other than 32 bits have not yet been implemented.")
-        return self.funcargs[2].pop()  # return the last item (i.e., results) and remove it from the list
+        # return the last item (i.e., results) and remove it from the list:
+        return self.funcargs[2].pop()
 
 
     def sum_all(self, omega_arr):
+        """See global function sum_all_phonons."""
         result          = cupy.zeros(int(self.funcargs[2][-2]), dtype="float64")
         omega_arr       = omega_arr.astype("float64", copy=False)
 
@@ -298,11 +355,11 @@ class _gen_phonon_at_exc(_gendatseg_base):
         return self.funcargs[2].pop()   # remove and return result array
 
 
-class _gen_all_phonon(_gendatseg_base):
+class _GenAllPhonon(_GenDatSegBase):
     def bath_n_b(self, weights):
+        """See global function calculate_bath_n_b."""
         if self.funcargs[1][0] != 256:
-            raise NotImplementedError("A block size of 256 was hard-coded into this kernel, please adapt.")
-
+            raise NotImplementedError("A block size of 256 was hard-coded into this kernel.")
         result          = cupy.zeros(self.numsites, dtype="float64")
         self.funcargs[2] += [result, weights, cupy.uint32(self.numsites)]
 
@@ -313,7 +370,3 @@ class _gen_all_phonon(_gendatseg_base):
         self.funcargs[2].pop()          # remove numsites from funcargs
         self.funcargs[2].pop()          # remove omega_arr from funcargs
         return self.funcargs[2].pop()   # remove and return result array
-
-###################################################################################################################################################################################
-
-

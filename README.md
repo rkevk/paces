@@ -1,30 +1,59 @@
-# paces: 
-## Parallelized Application of Co-Evolving Subspaces, a method for computing quantum dynamics on GPUs
+# paces: Parallelized Application of Co-Evolving Subspaces
+## A method for computing quantum dynamics on GPUs
 The `main` branch will be updated with new features to support a wider variety of models.
-If you are interested in the single-exciton Holstein version that was used to create the initial data shown in the publication `[link to be inserted here]`, please see the [holstein_only](https://github.com/rkevk/paces/tree/holstein_only) branch instead.
+If you are interested in the single-exciton Holstein version that was used to create the initial data
+shown in the publication `[link to be inserted here]`, please see the [holstein_only](https://github.com/rkevk/paces/tree/holstein_only) branch instead.
 
 ## Dependencies:
-This code requires [SciPy](https://scipy.org) and [CuPy](https://cupy.dev) and its dependencies, chiefly [Python 3](https://python.org), [NumPy](https://numpy.org), [CUDA](https://developer.nvidia.com/cuda-gpus).
-It is known to work with the following combination of versions, but will most likely work with other versions as well:
+This code requires [CuPy](https://cupy.dev) and its dependencies,
+chiefly [Python 3](https://python.org), [NumPy](https://numpy.org)
+and [CUDA](https://developer.nvidia.com/cuda-gpus).
+It is known to work with the following combination of versions,
+but will most likely work with newer versions as well:
 * CuPy 11.2
 * CUDA 11.8 with cuDNN 8.4.0.27, cuTENSOR 1.5.0.3, NCCL 2.14.3
 * Python 3.10.8
 * NumPy 1.24.1
-* SciPy 1.10.0
 
-## Initial (one-time) setup:
+## Running a calculation with an existing model
+Choose a model to run from the `models` submodule and then do the following:
+
+### Initial (one-time) setup:
 After having ensured that the dependencies are met:
-Copy `device_config_template.py` to `device_config.py` and make necessary changes according to your system setup (number of GPUs, memory).
-`device_config.py` and any changes made to it will not be synced via git.
+Copy `paces/config/device_config_template.py` to `paces/config/device_config.py`
+and make necessary changes to the `device_config` file in line with your system setup
+(number of GPUs, memory).
+The `device_config` file and any changes made to it will not be synced via git.
+If desired, you can also further customize the default verbosity settings by modifying
+`paces/config/debug_verbosity_levels.py`.
 
-## Per-calculation setup:
-Before starting a calculation, first create a suitable subdirectory structure to store the data in.
-
-As an example, we assume you are located in the directory containing this `README.md` and say we want to store our files in `../parent_dir/main_calc_dir`.
+### Per-calculation setup:
+As an example, assume we are located in the directory containing this `README.md`
+and say we want to store our files in `../parent_dir/main_calc_dir`.
 Then the steps are:
 1. Ensure that `../parent_dir` already exists.
-2. Create the actual calculation directory itself including necessary subdirectories using `bash prepare_dir.sh ../parent_dir/main_calc_dir`.
-3. Set the parameters of the calculation as desired in the short wrapper file `main.py`.
-4. Run the calculation using `python3 main.py`.
+2. Create the calculation directory and its subdirectories `wf_coeffs` and `observables`.
+    This can be automated using `bash prepare_dir.sh ../parent_dir/main_calc_dir`.
+3. Set the parameters of the calculation as desired in the short wrapper file `main_example.py`.
+4. Run the calculation using `python3 main_example.py`.
 
-By default, the calculation directory specified within `main.py` is given as a relative path to `main.py` itself, not to the location from which it is called. To change this behavior, remove the `os.chdir` call from the start of the file.
+By default, the calculation directory specified within `main_example.py` is given as a relative path to `main_example.py` itself,
+not to the location from which it is called. To change this behavior, remove the `os.chdir` call from the start of the file
+(or use absolute paths).
+
+## Internal structure & defining a new model
+Defining a new model (i.e., a new "type" of Hamiltonian) is more involved.
+
+There are three fundamental classes which any calculation is based on.
+- `Hamiltonian` introduces the actual Hamiltonian generation procedure based on the current basis state.
+    This is the heart of any calculation. At the beginning of a calculation, a single, unchanging instance
+    of `HamiltonianObject` is created upon which everything else builds.
+- `Observables` contains observable calculation routines. It must also depend on the Hamiltonian model in question,
+    but is only ever used during the observables-computation part of each time step.
+- `TimeEvolution` takes an instance of `HamiltonianObject` *and* an uninstantiated concretized `Observables` as arguments.
+    It uses the former to continuously regenerate new Hamiltonians, expand bases, etc.,
+    while the latter is instantiated appropriately and then used to compute expectation values during the time evolution.
+
+Each of these three must be defined as a concretized subclass of the model-independent respective framework classes
+`HamiltonianFramework`, `ObservablesFramework`, `TimeEvolutionFramework`. 
+The abstract base classes are contained in the `core` submodule, whereas the concretized subclasses are contained in the `models` submodule.

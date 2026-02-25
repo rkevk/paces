@@ -1,0 +1,74 @@
+"""Helper functions that may be of use across different situations."""
+
+import numpy
+import cupy     # pylint: disable=import-error
+
+from ..config import SEARCHSORTED_TIMING_LEVEL
+
+####################################################################################################
+
+def cartesian_product(*arrays):
+    """Return the Cartesian product of a list of arrays."""
+    la = len(arrays)
+    dtype = numpy.result_type(*arrays)
+    arr = numpy.empty([len(a) for a in arrays] + [la], dtype=dtype)
+    for i, a in enumerate(numpy.ix_(*arrays)):
+        arr[...,i] = a
+    return arr.reshape(-1, la)
+
+def print_searchsorted_timing(verb, delta_t, size1, size2):
+    """Helper function to print the time it took to apply searchsorted."""
+    if verb > SEARCHSORTED_TIMING_LEVEL:
+        print("This application of searchsorted took"
+                f" {delta_t*1000} ms (arg sizes {size1}, {size2}).")
+
+def write_params(fname, obj, itemstr):
+    """
+    Helper function to write calculation parameters to file.
+
+    Args:
+        fname (str): Name of file to save data to. This function must be called in an open context!
+        obj: Object whose attributes will be saved.
+        itemstr (str): Attribute of the object whose value should be saved.
+    """
+    try:
+        value   = getattr(getattr(obj, itemstr), "__name__")
+    except AttributeError:
+        value   = getattr(obj, itemstr)
+    fname.write(itemstr + " = " + str(value) + '\n')
+
+
+def obs_attrs(**kwargs):
+    """Decorator to add header and fname to observable functions"""
+    def wrapper(f):
+        for attr, val in kwargs.items():
+            setattr(f, attr, val)
+        return f
+    return wrapper
+
+
+def debug_lister(dbg_list):
+    """
+    Decorator to add debug description to generate_mel_xxx
+
+    debug_list should be a list of strings providing names for the debug output.
+    """
+    def wrapper(f):
+        f.dbg_list = dbg_list
+        return f
+    return wrapper
+
+def flatten_dbg_dict(d):
+    """Flatten the dbg dicts (header or vals) into a list"""
+    return [x for l in [d[k] for k in d] for x in l]
+
+
+def cupy_unique(array):
+    """Replacement for numpy.unique with option axis=0"""
+    if len(array.shape) != 2:
+        raise ValueError("Input array must be 2D.")
+    sortarr     = array[cupy.lexsort(array.T[::-1])]
+    mask        = cupy.empty(array.shape[0], dtype=cupy.bool_)
+    mask[0]     = True
+    mask[1:]    = cupy.any(sortarr[1:] != sortarr[:-1], axis=1)
+    return sortarr[mask]

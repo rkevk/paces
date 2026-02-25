@@ -2,8 +2,8 @@
 ----
 
 Parts of paces are derived from SciPy code, which is licensed under the BSD-3-Clause license.
-This applies to the function simple_taylor in the file _core.py,
-as well as to the file _aux/cupy_expm_multiply.py.
+This applies to the function TimeEvolutionFramework._simple_taylor in paces/core/time_evolution.py
+as well as to the files contained in paces/aux/_scipy.
 
 The license applicable to the aforementioned sections is as follows:
 

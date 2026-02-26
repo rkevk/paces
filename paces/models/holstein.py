@@ -38,6 +38,10 @@ class Hamiltonian(HamiltonianFramework):
         max_dims[1:]= max_ho_dims
         super().__init__(max_dims=max_dims, **kwargs)
 
+        # The following two are used for logging and must be run after super().__init__:
+        self.input_args["nchain"]       = nchain
+        self.input_args["max_ho_dims"]  = max_ho_dims
+
         self.posbitwidth    = int(self.use_module.ceil(self.use_module.log2(self.nchain)))
         with vector_device:
             self.qhobitwidth_v  = self.bitwidths_v[1:]

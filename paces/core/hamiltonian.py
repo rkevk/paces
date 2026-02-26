@@ -118,6 +118,10 @@ class HamiltonianFramework:
                                 " (check file device_config.py)")
         if cupy.cuda.Device() != vector_device:
             raise ValueError("This class should be instantiated while vector_device is current.")
+        # The following is only used for logging (use_terms is handled separately):
+        self.input_args     = {"max_dims": max_dims, "use_complex_type": use_complex_type,
+                                "use_module": use_module, "wordsize": wordsize,
+                                "debug_verb": debug_verb, "search_mindiff": search_mindiff}
         self.use_module     = use_module
         self.complex_type   = use_complex_type
         self.debug_verb     = debug_verb
@@ -388,7 +392,8 @@ class HamiltonianFramework:
         """
         if basis_states.shape[1] != self.totwordwidth:
             raise ValueError("Shape of basis states does not match the specified number of bits.")
-        for i in range(enlarge_steps):  # This does a simplified version of what generate_mel does:
+        for _ in range(enlarge_steps):
+            # The following does a simplified version of what generate_mel does:
             basis_states = self.enlarge_basis_set(basis_states)
 
         # Generate the various non-diagonal matrix elements:

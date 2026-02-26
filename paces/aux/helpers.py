@@ -22,22 +22,6 @@ def print_searchsorted_timing(verb, delta_t, size1, size2):
         print("This application of searchsorted took"
                 f" {delta_t*1000} ms (arg sizes {size1}, {size2}).")
 
-def write_params(fname, obj, itemstr):
-    """
-    Helper function to write calculation parameters to file.
-
-    Args:
-        fname (str): Name of file to save data to. This function must be called in an open context!
-        obj: Object whose attributes will be saved.
-        itemstr (str): Attribute of the object whose value should be saved.
-    """
-    try:
-        value   = getattr(getattr(obj, itemstr), "__name__")
-    except AttributeError:
-        value   = getattr(obj, itemstr)
-    fname.write(itemstr + " = " + str(value) + '\n')
-
-
 def obs_attrs(**kwargs):
     """Decorator to add header and fname to observable functions"""
     def wrapper(f):

@@ -16,7 +16,7 @@ import cupy     # pylint: disable=import-error
 import cupyx    # pylint: disable=import-error
 
 from ..aux import expm_multiply_simple
-from ..aux.helpers import write_params, flatten_dbg_dict
+from ..aux.helpers import flatten_dbg_dict
 from ..config import *
 
 if numpy.uintc != numpy.uint32:
@@ -202,18 +202,26 @@ class TimeEvolutionFramework:
     def initialize_params_file(self):
         """Write the header and main parameters to the central parameter file."""
         with open(self.params_file, "w", encoding="utf-8") as pf:
-            pf.write("### Hilbert space parameters:\n")
-            for itemstr in [i for i in vars(self.hamobj) if i != "use_terms"]:
-                write_params(pf, self.hamobj, itemstr)
+            pf.write("### Hilbert space constructed from"
+                        f" {self.hamobj.__class__.__module__}.{self.hamobj.__class__.__name__}"
+                        " with the following parameters:\n")
+            pf.write(pprint.pformat(self.hamobj.input_args) + "\n")
 
-            pf.write("\n### Hamiltonian terms and parameters:\n")
+            pf.write("\n### Hamiltonian terms and their parameters:\n")
             pf.write(pprint.pformat(self.hamobj.use_terms, width=1) + "\n")
 
-            pf.write("\n### TimeEvolution parameters:\n")
-            pf.write(repr(self.te_params))
-            pf.write(repr(self.expm_params))
+            pf.write("\n### Observables constructed from"
+                        f" {self.obsobj.__class__.__module__}.{self.obsobj.__class__.__name__}"
+                        " with the following observables:\n")
+            pf.write(pprint.pformat([*self.obsobj.obs_dict]) + "\n")
 
-            pf.write("\n### End of parameter list\n"
+            pf.write("\n### TimeEvolution constructed from"
+                        f" {self.__class__.__module__}.{self.__class__.__name__}"
+                        " with the following parameters:\n")
+            pf.write(pprint.pformat(self.te_params) + "\n")
+            pf.write(pprint.pformat(self.expm_params) + "\n")
+
+            pf.write("\n### End of initialization parameter list\n"
                 "#################################################################\n")
 
 
@@ -225,8 +233,10 @@ class TimeEvolutionFramework:
         args, _, _, values  = inspect.getargvalues(frame)
         arg_list            = [(str(i) + "=" + str(values[i])) for i in args if str(i) != "self"]
         fname               = frame.f_code.co_name
-        header = f"\nFunction call at {start_time} ({localtime} local):\n   {fname}("
-        header += ", ".join(arg_list) + ")\n"
+        mod_obj             = f"{self.__class__.__module__}.{self.__class__.__name__}"
+        header = f"\nFunction call in {mod_obj} at {start_time} ({localtime} local):\n"
+        header += f"  {fname}(\n        "
+        header += ",\n    ".join(arg_list) + ")\n"
         with open(self.params_file, "a", encoding="utf-8") as params_file:
             params_file.write(header)
 
@@ -692,7 +702,7 @@ class TimeEvolutionFramework:
             (diag_vals, new_inds), coo_dict, debug_dict = diag_coo_debug
 
         if self.debug_verb > HILBERT_SPACE_LEVEL:
-            print(f"           Created all matrix elements.")
+            print("           Created all matrix elements.")
 
         # self.numstates now represents the new numstates:
         self.numstates      = new_inds.shape[0]

@@ -465,7 +465,7 @@ class TimeEvolution(TimeEvolutionFramework):
         if any(lowest_d_list[i] + truncate_d_list[i] > self.hamobj.max_dims_v[i+1]
                                                             for i in range(self.hamobj.nchain)):
             raise ValueError("Specified truncation value exceeds at least one of the max_ho_dims.")
-        if numpy.product(truncate_d_list) * (maxpos-minpos) > self.te_params.maxstates:
+        if numpy.prod(truncate_d_list) * (maxpos-minpos) > self.te_params.maxstates:
             raise ValueError("Number of states that would result from this value of truncate_d"
                                 " exceeds maxstates!")
         if minpos < 0 or maxpos > self.hamobj.nchain or minpos >= maxpos:
@@ -612,7 +612,7 @@ class PhononRedDensityMatrix:
         inds_to         = self.searchsorted(basis_states, plus_inds, allow_escapes=True)
         mask            = cupy.all(basis_states[inds_to] == plus_inds, axis=1)
         numbs           = len(basis_states)
-        return  cupy.sparse.coo_matrix(
+        return  cupyx.scipy.sparse.coo_matrix(
                       (cupy.ones(mask.sum().item()),
                           (inds_to[mask], cupy.arange(numbs, dtype=inds_to.dtype)[mask])),
                     shape=(numbs, numbs)).tocsr()

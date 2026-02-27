@@ -17,12 +17,10 @@ from ..config import (SEARCHSORTED_TIMING_LEVEL, MEM_INFO_LEVEL, HILBERT_SPACE_D
                         vector_device, whoami_device)
 
 py_version = sys.version_info
-if not (py_version.major > 3 or (py_version.major == 3 and py_version.minor >= 7)):
-    print("Python >= 3.7 is required to run this.") # for the order-preserving dicts
+if not (py_version.major > 3 or (py_version.major == 3 and py_version.minor >= 10)):
+    # for the order-preserving dicts and strict kwarg in zip:
+    print("Python >= 3.10 is required to run this.")
     sys.exit(1)
-
-if numpy.uintc != numpy.uint32:
-    raise TypeError("This code will not work on a system whose integer size is not 32 bits.")
 
 ####################################################################################################
 
@@ -103,7 +101,7 @@ class HamiltonianFramework:
                 diagonal terms with the special key "diag".
             use_complex_type (type): The type to use for complex numbers. Default: numpy.complex128.
             use_module (module): The module to use for the computation.
-                Must be either numpy or cupy. Default: cupy.
+                Must be either numpy or cupy. In practice, only cupy will work! Default: cupy.
             wordsize (uint): The size of the word to use.
                 In particular, unsigned integers will be represented using this number of bits,
                 and this value should be the one that functions optimally for your hardware/GPU.
@@ -304,7 +302,7 @@ class HamiltonianFramework:
 
         # mask leading bits away, if necessary:
         if numlead != 0:
-            result &= (1 << (self.wordsize - numlead)) - 1
+            result &= self.dtype((1 << (self.wordsize - numlead)) - 1)
 
         # if we only need the i-th word and need to shift to the right:
         if num2bits < self.wordsize:
@@ -334,10 +332,16 @@ class HamiltonianFramework:
 
         word_i, num2bits, _ = self._get_compression_inds(arr, index)
 
-        if num2bits == self.wordsize:
-            arr[:,word_i]   += self.dtype(n)
-        elif num2bits < self.wordsize:
-            arr[:,word_i]   += self.dtype(n << (self.wordsize-num2bits))
+        if num2bits == self.wordsize:   # end of logical unit coincides with end of word
+            if n > 0:
+                arr[:,word_i] += self.dtype(n)
+            else:
+                arr[:,word_i] -= self.dtype(-n)
+        elif num2bits < self.wordsize:  # end of logical unit is before end of word
+            if n > 0:
+                arr[:,word_i] += self.dtype(n << (self.wordsize-num2bits))
+            else:
+                arr[:,word_i] -= self.dtype(-n << (self.wordsize-num2bits))
         elif num2bits > self.wordsize:
             if self.wordsize != 8:
                 raise NotImplementedError("This method has not been implemented for wordsizes != 8")
@@ -345,11 +349,12 @@ class HamiltonianFramework:
             # To do that, we must create a contiguous array from arr and also reverse the order
             # due to the CPU/GPU-level little-endian byte ordering.
             # Unfortunately, this requires creating a copy of the two columns in question.
-            arr[:,word_i:word_i+2] =    (self.use_module.ascontiguousarray(
-                                                    arr[:,word_i:word_i+2][:,::-1]
-                                                ).view("uint16")
-                                            + self.dtype(n << (16-num2bits))
-                                        ).view("uint8")[:,::-1]
+            v16 = self.use_module.ascontiguousarray(arr[:,word_i:word_i+2][:,::-1]).view("uint16")
+            if n > 0:
+                res = v16 + self.dtype(n << (16-num2bits))
+            else:
+                res = v16 - self.dtype(-n << (16-num2bits))
+            arr[:,word_i:word_i+2] = res.view("uint8")[:,::-1]
 
 
     def _generate_o_star_mask(self, basis_states, plus_inds):

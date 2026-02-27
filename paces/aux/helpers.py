@@ -16,11 +16,13 @@ def cartesian_product(*arrays):
         arr[...,i] = a
     return arr.reshape(-1, la)
 
+
 def print_searchsorted_timing(verb, delta_t, size1, size2):
     """Helper function to print the time it took to apply searchsorted."""
     if verb > SEARCHSORTED_TIMING_LEVEL:
         print("This application of searchsorted took"
                 f" {delta_t*1000} ms (arg sizes {size1}, {size2}).")
+
 
 def obs_attrs(**kwargs):
     """
@@ -51,6 +53,7 @@ def debug_lister(dbg_list):
         f.dbg_list = dbg_list
         return f
     return wrapper
+
 
 def flatten_dbg_dict(d):
     """Flatten the dbg dicts (header or vals) into a list"""

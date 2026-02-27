@@ -9,9 +9,6 @@ from dataclasses import dataclass
 import numpy
 import cupy     # pylint: disable=import-error
 
-if numpy.uintc != numpy.uint32:
-    raise TypeError("This code will not work on a system whose integer size is not 32 bits.")
-
 ####################################################################################################
 
 def calc_partition_lens(partition_by, uniquevals):

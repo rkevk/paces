@@ -8,12 +8,21 @@ shown in the publication `[link to be inserted here]`, please see the [holstein_
 This code requires [CuPy](https://cupy.dev) and its dependencies,
 chiefly [Python 3](https://python.org), [NumPy](https://numpy.org)
 and [CUDA](https://developer.nvidia.com/cuda-gpus).
-It is known to work with the following combination of versions,
-but will most likely work with newer versions as well:
-* CuPy 11.2
-* CUDA 11.8 with cuDNN 8.4.0.27, cuTENSOR 1.5.0.3, NCCL 2.14.3
-* Python 3.10.8
-* NumPy 1.24.1
+It is known to work with the following combinations of versions:
+1. * CuPy 11.2
+   * CUDA 11.8 with cuDNN 8.4.0.27, cuTENSOR 1.5.0.3, NCCL 2.14.3
+   * Python 3.10.8
+   * NumPy 1.24.1
+2. * CuPy 13.6.0
+   * CUDA 11.8 with cuTENSOR 1.6.2.3
+   * Python 3.12.3
+   * NumPy 2.4.2
+
+as well as the following combination:
+* CuPy 14.0.1
+* CUDA 12.0
+* Python 3.13.3
+* NumPy 2.3.1
 
 ## Running a calculation with an existing model
 Choose a model to run from the `models` submodule and then do the following:

@@ -8,19 +8,11 @@ shown in the publication `[link to be inserted here]`, please see the [holstein_
 This code requires [CuPy](https://cupy.dev) and its dependencies,
 chiefly [Python 3](https://python.org), [NumPy](https://numpy.org)
 and [CUDA](https://developer.nvidia.com/cuda-gpus).
-It is known to work with the following combinations of versions:
-1. * CuPy 12.2.0
-   * CUDA 11.8 with cuDNN 8.4.0.27, cuTENSOR 1.5.0.3, NCCL 2.14.3
-   * NumPy 1.24.1
-   * Python 3.10.8
-2. * CuPy 13.6.0
-   * CUDA 11.8 with cuTENSOR 1.6.2.3
-   * NumPy 2.4.2
-   * Python 3.12.3
-3. * CuPy 14.0.1
-   * CUDA 12.0
-   * NumPy 2.3.1
-   * Python 3.13.3
+It has been tested with the following versions:
+* CuPy from 12.2 up to 14.0.1
+* CUDA 11.8 and 12.0
+* NumPy from 1.24 up to 2.4
+* Python from 3.10 up to 3.13.3
 
 ## Running a calculation with an existing model
 After cloning the repository, choose a model to run from the `models` submodule and then do the following.
@@ -58,16 +50,16 @@ to install directly from GitHub.
 
 #### If you don't have a working CuPy installation yet...
 ... then you at least need a working CUDA installation including nvcc (part of the dev toolkit).
-You can install `paces` and CuPy at the same time by specifying the version of CUDA you have installed, e.g.:
+Once you have a working CUDA installation, you can install `paces` and CuPy at the same time
+by specifying the version of CUDA you have installed, e.g.:
 ```
 pip install /path/to/downloaded/repo[cuda12]
 ```
-for CUDA versions 12.x, or
+or
 ```
 pip install "paces[cuda12] @ git+https://github.com/rkevk/paces.git"
 ```
-to install directly from GitHub.
-The available options are `cuda11`, `cuda12` and `cuda13`.
+for CUDA versions 12.x. The available options are `cuda11`, `cuda12` and `cuda13`.
 Any other versions of CUDA will require you to get CuPy running in advance.
 
 ## Internal structure & defining a new model
@@ -87,3 +79,5 @@ Each of these three must be defined as a concretized subclass of the model-indep
 `HamiltonianFramework`, `ObservablesFramework`, `TimeEvolutionFramework`. 
 The abstract base classes are contained in the `core` submodule,
 whereas the concretized subclasses are contained in the `models` submodule.
+If you are interested in developing a new model,
+consider checking the existing models in the `models` submodule to understand how they are built.

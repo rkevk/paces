@@ -207,7 +207,7 @@ class TimeEvolutionFramework:
             pf.write("### Hilbert space constructed from"
                         f" {self.hamobj.__class__.__module__}.{self.hamobj.__class__.__name__}"
                         " with the following parameters:\n")
-            pf.write(pprint.pformat(self.hamobj.input_args) + "\n")
+            pf.write(pprint.pformat(self.hamobj.input_args, compact=True) + "\n")
 
             pf.write("\n### Hamiltonian terms and their parameters:\n")
             pf.write(pprint.pformat(self.hamobj.use_terms, width=1) + "\n")
@@ -237,7 +237,7 @@ class TimeEvolutionFramework:
         fname               = frame.f_code.co_name
         mod_obj             = f"{self.__class__.__module__}.{self.__class__.__name__}"
         header = f"\nFunction call in {mod_obj} at {start_time} ({localtime} local):\n"
-        header += f"  {fname}(\n        "
+        header += f"  {fname}(\n    "
         header += ",\n    ".join(arg_list) + ")\n"
         with open(self.params_file, "a", encoding="utf-8") as params_file:
             params_file.write(header)

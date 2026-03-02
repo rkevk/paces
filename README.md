@@ -11,18 +11,16 @@ and [CUDA](https://developer.nvidia.com/cuda-gpus).
 It is known to work with the following combinations of versions:
 1. * CuPy 11.2
    * CUDA 11.8 with cuDNN 8.4.0.27, cuTENSOR 1.5.0.3, NCCL 2.14.3
-   * Python 3.10.8
    * NumPy 1.24.1
+   * Python 3.10.8
 2. * CuPy 13.6.0
    * CUDA 11.8 with cuTENSOR 1.6.2.3
-   * Python 3.12.3
    * NumPy 2.4.2
-
-as well as the following combination:
-* CuPy 14.0.1
-* CUDA 12.0
-* Python 3.13.3
-* NumPy 2.3.1
+   * Python 3.12.3
+3. * CuPy 14.0.1
+   * CUDA 12.0
+   * NumPy 2.3.1
+   * Python 3.13.3
 
 ## Running a calculation with an existing model
 Choose a model to run from the `models` submodule and then do the following:
@@ -35,15 +33,13 @@ If you choose to push commits later on, the `device_config` file and any changes
 
 ### Per-calculation setup:
 As an example, let the working directory of our shell be the directory containing this `README.md`
-and say we want to store our files in `../parent_dir/main_calc_dir`.
+and say we want to store our files in `../../paces_results/example/`.
 We will run the example calculation given in `main_example.py` (a single-exciton 1D Holstein chain).
 
 Then the steps are:
-1. Ensure that `../parent_dir` already exists.
-2. Create the calculation directory and its subdirectories `wf_coeffs` and `observables`.
-    This can be automated using `bash prepare_dir.sh ../parent_dir/main_calc_dir`.
-3. Set the parameters of the calculation as desired in the short wrapper file `main_example.py`.
-4. Run the calculation using `python3 main_example.py`.
+1. Ensure that the calculation directory `../../paces_results/example/` exists.
+2. Set the parameters of the calculation as desired in the short wrapper file `main_example.py`.
+3. Run the calculation using `python3 main_example.py`.
 
 By default, the calculation directory specified within `main_example.py` is given as a relative path to `main_example.py` itself,
 not to the location from which it is called. To change this behavior, remove the `os.chdir` call from the start of the file

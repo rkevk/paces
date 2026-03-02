@@ -1,6 +1,6 @@
 """observables: Hosts the class ObservablesFramework whose subclasses provide observable funcs."""
 
-import os.path
+import os
 import abc
 
 import numpy
@@ -49,6 +49,8 @@ class ObservablesFramework:
         self.fname_dict = {}
 
         obs_dir    = os.path.join(teobj.dirname, "observables")
+        if not os.path.exists(obs_dir):
+            os.mkdir(obs_dir)
         for key in obs_list:
             try:
                 meth    = getattr(self, "calculate_" + key)

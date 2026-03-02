@@ -7,6 +7,7 @@ import inspect
 import sys
 import pprint
 import abc
+import os
 
 from typing import Optional
 from dataclasses import dataclass
@@ -153,6 +154,9 @@ class TimeEvolutionFramework:
         if te_params.shuffle_seed is not None:
             self.use_module.random.seed(te_params.shuffle_seed)
 
+        if not os.path.exists(self.dirname):
+            raise FileNotFoundError(f"The results directory {self.dirname} does not exist.")
+
         # Second of the two core objects, the observables object, which we instantiate now:
         # (this has to refer to the attributes set above, which is why it has to be down here)
         self.obsobj     = ObsObj(self, obs_list)
@@ -172,13 +176,15 @@ class TimeEvolutionFramework:
 
         real_valued = all(all(value.imag == 0 for value in paramdict.values())
                                     for paramdict in self.hamobj.use_terms.values())
+
         if not real_valued:
             # The following applies specifically to the weighting_func methods
             raise NotImplementedError("Not all functions have been adapted to complex-valued"
                                             " off-diagonal Hamiltonian matrix elements.")
 
         if params_file is None:
-            self.params_file    = self.dirname + "/paces_params_run_" + str(time.time()) + ".log"
+            basename            = "paces_params_run_" + str(time.time()) + ".log"
+            self.params_file    = os.path.join(self.dirname, basename)
         else:
             self.params_file    = params_file
 
@@ -648,7 +654,10 @@ class TimeEvolutionFramework:
         intnum          = numpy.abs(numpy.ceil(numpy.log10(largest_val)))
 
         f_str           = "wf_file_{0:0%i.%if}" % (intnum + decnum + 1, decnum)
-        self.wf_name_list = [self.dirname + "/wf_coeffs/" + f_str.format(i) for i in t_array]
+        wf_coeff_dir    = os.path.join(self.dirname, "wf_coeffs")
+        if not os.path.exists(wf_coeff_dir):
+            os.mkdir(wf_coeff_dir)
+        self.wf_name_list = [os.path.join(wf_coeff_dir, f_str.format(i)) for i in t_array]
 
 
     def _save_diagnostic_data(self, t_curr: float, norm: float, norm_energy: list,

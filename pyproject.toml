@@ -1,0 +1,40 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "paces"
+dynamic = ["version"]
+authors = [
+  { name="R. Kevin Kessing", email="r.k.kessing@gmail.com" },
+]
+description = "A method for computing quantum dynamics on GPUs."
+readme = "README.md"
+requires-python = ">=3.10"
+license = " GPL-3.0-or-later"
+license-files = ["LICENSE*"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: POSIX",
+    "Operating System :: Unix",
+    "Environment :: GPU :: NVIDIA CUDA",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Topic :: Scientific/Engineering :: Chemistry",
+]
+
+[tool.hatch.version]
+path = "paces/__init__.py"
+
+[project.optional-dependencies]
+cuda11 = ["cupy-cuda11x"]
+cuda12 = ["cupy-cuda12x"]
+cuda13 = ["cupy-cuda13x"]
+
+[project.urls]
+Homepage = "https://github.com/rkevk/paces"
+Issues = "https://github.com/rkevk/paces/issues"
+

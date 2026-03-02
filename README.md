@@ -23,7 +23,8 @@ It is known to work with the following combinations of versions:
    * Python 3.13.3
 
 ## Running a calculation with an existing model
-Choose a model to run from the `models` submodule and then do the following.
+After cloning the repository, choose a model to run from the `models` submodule and then do the following.
+
 We will use the example calculation given in `main_example.py` (a single-exciton 1D Holstein chain),
 located in the same directory as this `README.md`. This shall also be the working directory of our shell.
 Say we want to store our files in `../../paces_results/example/`.
@@ -36,6 +37,38 @@ Then the steps are:
 By default, the calculation directory specified within `main_example.py` is given as a
 relative path to `main_example.py` itself, not to the location from which it is called.
 To change this behavior, remove the `os.chdir` call from the start of the file (or use absolute paths).
+
+### Installing `paces` for use from other locations
+`paces` can also be installed via pip if you would like to import it as a library
+from an arbitrary working directory (preferably in a [venv](https://docs.python.org/3/library/venv.html)).
+Due to the way CuPy is packaged and interfaces with CUDA, this is slightly non-trivial.
+Note that you will need to download the file `main_example.py` separately from GitHub
+if installing `paces` via pip.
+
+#### If you already have a working CuPy installation...
+... then you can simply run either
+```
+pip install /path/to/downloaded/repo
+```
+if you have already cloned the repository, or
+```
+pip install "paces @ git+https://github.com/rkevk/paces.git"
+```
+to install directly from GitHub.
+
+#### If you don't have a working CuPy installation yet...
+... then you at least need a working CUDA installation including nvcc (part of the dev toolkit).
+You can install `paces` and CuPy at the same time by specifying the version of CUDA you have installed, e.g.:
+```
+pip install /path/to/downloaded/repo[cuda12]
+```
+for CUDA versions 12.x, or
+```
+pip install "paces[cuda12] @ git+https://github.com/rkevk/paces.git"
+```
+to install directly from GitHub.
+The available options are `cuda11`, `cuda12` and `cuda13`.
+Any other versions of CUDA will require you to get CuPy running in advance.
 
 ## Internal structure & defining a new model
 Defining a new model (i.e., a new "type" of Hamiltonian) is more involved.

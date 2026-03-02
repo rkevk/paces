@@ -14,7 +14,7 @@ import cupy     # pylint: disable=import-error
 from ..aux import cupy_search
 from ..aux.helpers import print_searchsorted_timing, flatten_dbg_dict, cupy_unique
 from ..config import (SEARCHSORTED_TIMING_LEVEL, MEM_INFO_LEVEL, HILBERT_SPACE_DETAILED_LEVEL,
-                        vector_device, whoami_device)
+                            devices)
 
 py_version = sys.version_info
 if not (py_version.major > 3 or (py_version.major == 3 and py_version.minor >= 10)):
@@ -111,11 +111,11 @@ class HamiltonianFramework:
             search_mindiff (uint): A threshold for switching from binary to linear searches.
                 This is irrelevant if wordsize != 8. Default: 32.
         """
-        if not ("vector_device" in globals() and "whoami_device" in globals()):
-            raise NameError("The CUDA devices to be used must be defined as global variables"
-                                " (check file device_config.py)")
-        if cupy.cuda.Device() != vector_device:
-            raise ValueError("This class should be instantiated while vector_device is current.")
+        if not devices.configure_called:
+            raise NameError("The CUDA devices must be configured before starting the calculation"
+                            " (by calling paces.config.devices.configure with appropriate args).")
+        if cupy.cuda.Device() != devices.vector_dev:
+            raise ValueError("This class should be instantiated while vector_dev is current.")
         # The following is only used for logging (use_terms is handled separately):
         self.input_args     = {"max_dims": max_dims, "use_complex_type": use_complex_type,
                                 "use_module": use_module, "wordsize": wordsize,
@@ -125,9 +125,9 @@ class HamiltonianFramework:
         self.debug_verb     = debug_verb
         self.search_mindiff = search_mindiff
 
-        with vector_device:
+        with devices.vector_dev:
             self.max_dims_v = self.use_module.asarray(max_dims)
-        with whoami_device:
+        with devices.whoami_dev:
             self.max_dims_w = self.use_module.asarray(max_dims)
         self.n_sites        = len(max_dims)
 
@@ -144,11 +144,11 @@ class HamiltonianFramework:
         # get the uint type that we will use for the index arrays:
         self.dtype          = getattr(self.use_module, f"uint{self.wordsize}")
 
-        with vector_device:
-            # cupy array on vector_device describing the bitwidths per site:
+        with devices.vector_dev:
+            # cupy array on vector_dev describing the bitwidths per site:
             self.bitwidths_v  = cupy.ceil(cupy.log2(self.max_dims_v)).astype(self.dtype)
-        with whoami_device:
-            # cupy array on whoami_device describing the bitwidths per site:
+        with devices.whoami_dev:
+            # cupy array on whoami_dev describing the bitwidths per site:
             self.bitwidths_w  = cupy.ceil(cupy.log2(self.max_dims_w)).astype(self.dtype)
         # total number of words per line in the index arrays:
         self.totwordwidth   = int(self.use_module.ceil(self.bitwidths_v.sum()/self.wordsize))
@@ -217,7 +217,7 @@ class HamiltonianFramework:
 
     def compress_ind_arr(self, raw_states):
         """Take an array with one col per site and return a compressed array without extra zeros."""
-        if raw_states.device == vector_device:
+        if raw_states.device == devices.vector_dev:
             bitwidths = self.bitwidths_v
         else:
             bitwidths = self.bitwidths_w
@@ -269,7 +269,7 @@ class HamiltonianFramework:
                 at the end of the first word.
             numlead (uint): number of leading bits in first word that must be trimmed.
         """
-        bitwidths = self.bitwidths_v if arr.device == vector_device else self.bitwidths_w
+        bitwidths = self.bitwidths_v if arr.device == devices.vector_dev else self.bitwidths_w
         # number of bits preceding the block in question (= index of first relevant bit):
         bit_offset  = bitwidths[:index].sum()
         # index of first bit after the block has ended:
@@ -469,7 +469,7 @@ class HamiltonianFramework:
             coo_dict[term]  = self._add_hc_and_generate_coo(new_inds, basis_lookup, len_dict[term],
                                                             melpack)
             if self.debug_verb > MEM_INFO_LEVEL:
-                print("          Near-maximal memory usage on whoami_device, est. 1:"
+                print("          Near-maximal memory usage on whoami_dev, est. 1:"
                             f" {cupy.get_default_memory_pool().used_bytes()/1024**2} MiB")
             del melpack
 

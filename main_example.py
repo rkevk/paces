@@ -5,13 +5,17 @@ import os
 
 import numpy
 
+from paces.config import devices
 from paces.models import holstein
 from paces.core import CoeffSaveParams, ExpmParams, TimeEvoParams
-from paces.config import vector_device
 
 # This makes relative paths refer to the location of this script:
 if os.path.dirname(sys.argv[0]) != '':
     os.chdir(os.path.dirname(sys.argv[0]))
+
+####################################################################################################
+# configure device and memory settings; the defaults will select a single GPU for everything:
+devices.configure()
 
 ####################################################################################################
 # debugging verbosity (for printing to stdout):
@@ -85,7 +89,7 @@ expm_params     = ExpmParams()
 # End of parameter input, start of calculations
 ####################################################################################################
 
-with vector_device:
+with devices.vector_dev:
     ##############################################################
     # Generate the fundamental Hilbert space:
     hamobj  = holstein.Hamiltonian(

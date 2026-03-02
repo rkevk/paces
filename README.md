@@ -9,7 +9,7 @@ This code requires [CuPy](https://cupy.dev) and its dependencies,
 chiefly [Python 3](https://python.org), [NumPy](https://numpy.org)
 and [CUDA](https://developer.nvidia.com/cuda-gpus).
 It is known to work with the following combinations of versions:
-1. * CuPy 11.2
+1. * CuPy 12.2.0
    * CUDA 11.8 with cuDNN 8.4.0.27, cuTENSOR 1.5.0.3, NCCL 2.14.3
    * NumPy 1.24.1
    * Python 3.10.8
@@ -23,27 +23,19 @@ It is known to work with the following combinations of versions:
    * Python 3.13.3
 
 ## Running a calculation with an existing model
-Choose a model to run from the `models` submodule and then do the following:
-
-### Initial (one-time) setup:
-After having ensured that the dependencies are met:
-Clone this repository, then copy `paces/config/device_config_template.py` to `paces/config/device_config.py`
-and make necessary changes to the `device_config` file in line with your system setup (number of GPUs, memory).
-If you choose to push commits later on, the `device_config` file and any changes made to it will be excluded (via `.gitignore`).
-
-### Per-calculation setup:
-As an example, let the working directory of our shell be the directory containing this `README.md`
-and say we want to store our files in `../../paces_results/example/`.
-We will run the example calculation given in `main_example.py` (a single-exciton 1D Holstein chain).
+Choose a model to run from the `models` submodule and then do the following.
+We will use the example calculation given in `main_example.py` (a single-exciton 1D Holstein chain),
+located in the same directory as this `README.md`. This shall also be the working directory of our shell.
+Say we want to store our files in `../../paces_results/example/`.
 
 Then the steps are:
 1. Ensure that the calculation directory `../../paces_results/example/` exists.
-2. Set the parameters of the calculation as desired in the short wrapper file `main_example.py`.
+2. Set the parameters of the calculation as desired in the main wrapper file `main_example.py`.
 3. Run the calculation using `python3 main_example.py`.
 
-By default, the calculation directory specified within `main_example.py` is given as a relative path to `main_example.py` itself,
-not to the location from which it is called. To change this behavior, remove the `os.chdir` call from the start of the file
-(or use absolute paths).
+By default, the calculation directory specified within `main_example.py` is given as a
+relative path to `main_example.py` itself, not to the location from which it is called.
+To change this behavior, remove the `os.chdir` call from the start of the file (or use absolute paths).
 
 ## Internal structure & defining a new model
 Defining a new model (i.e., a new "type" of Hamiltonian) is more involved.

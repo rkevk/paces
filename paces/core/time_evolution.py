@@ -190,8 +190,8 @@ class TimeEvolutionFramework:
 
         self.initialize_params_file()
 
-        if vector_device != whoami_device and self.te_params.use_two_streams:
-            with whoami_device:
+        if devices.split and self.te_params.use_two_streams:
+            with devices.whoami_dev:
                 self.whoami_stream = cupy.cuda.Stream()
 
         if self.debug_verb > INIT_VERBOSITY_LEVEL:
@@ -500,7 +500,7 @@ class TimeEvolutionFramework:
             print(f"\nCheck {self.log_ind}: Initiated timestep from {t_curr-delta_t} to {t_curr}.\n"
                     f"Check {self.log_ind+1}: Determining next Hilbert subspace.")
             self.log_ind += 1
-        if vector_device != whoami_device and self.te_params.use_two_streams:
+        if devices.split and self.te_params.use_two_streams:
             self.whoami_stream.synchronize()
         use_weight_function = (self.te_params.tau != 0 and i != 0)
         # At this point:
@@ -538,9 +538,7 @@ class TimeEvolutionFramework:
         #
         # Begin the concurrent evaluation of the next Hilbert space, if applicable:
         #
-        if (vector_device != whoami_device
-                and self.te_params.use_two_streams
-                and i < self.cso.max_i):
+        if (devices.split and self.te_params.use_two_streams and i < self.cso.max_i):
             diag_coo_debug = self._concurrent_whoami(use_weight_function)
 
         norm = self.use_module.linalg.norm(self.vector).item()
@@ -563,7 +561,7 @@ class TimeEvolutionFramework:
             print(f"\nCheck {self.log_ind}: Began initial timestep (no evolution in this step).\n"
                     f"Check {self.log_ind+1}: Determining next Hilbert subspace.")
             self.log_ind += 1
-        if vector_device != whoami_device and self.te_params.use_two_streams:
+        if devices.split and self.te_params.use_two_streams:
             self.whoami_stream.synchronize()
         dbg_dict, post_adapt_norm_en = self._generate_new_hilbert_space_cupy(
                                                 enlarge_steps = self.te_params.enlarge_steps,
@@ -575,9 +573,7 @@ class TimeEvolutionFramework:
             self.log_ind += 1
 
         # Begin the concurrent evaluation of the next Hilbert space, if applicable:
-        if (vector_device != whoami_device
-                and self.te_params.use_two_streams
-                and 0 < self.cso.max_i):
+        if (devices.split and self.te_params.use_two_streams and 0 < self.cso.max_i):
             diag_coo_debug = self._concurrent_whoami(False)
         else:
             diag_coo_debug = None
@@ -605,7 +601,7 @@ class TimeEvolutionFramework:
                                         tau=self.te_params.tau)
         if self.debug_verb > BASE_STEP_LEVEL:
             print("Check {self.log_ind}: Beginning concurrent calculation of next Hilbert space.")
-        with whoami_device:
+        with devices.whoami_dev:
             with self.whoami_stream:
                 new_select      = cupy.asarray(select_whoami)
                 diag_coo_debug  = self.hamobj.generate_mel(
@@ -634,12 +630,12 @@ class TimeEvolutionFramework:
     def _print_memory_info(self):
         if self.debug_verb > MEM_INFO_LEVEL:
             print(f"Used {cupy.get_default_memory_pool().used_bytes()/1024**2:1.1f} or"
-                    f" {numpy.diff(cupy.cuda.Device(vector_device).mem_info)[0]/1024**2:1.1f}"
-                    " MiB on vector_device.")
-            with cupy.cuda.Device(whoami_device):
+                    f" {numpy.diff(cupy.cuda.Device(devices.vector_dev).mem_info)[0]/1024**2:1.1f}"
+                    " MiB on vector_dev.")
+            with cupy.cuda.Device(devices.whoami_dev):
                 print(f"Used {cupy.get_default_memory_pool().used_bytes()/1024**2:1.1f} or"
-                    f" {numpy.diff(cupy.cuda.Device(whoami_device).mem_info)[0]/1024**2:1.1f}"
-                    " MiB on whoami_device.")
+                    f" {numpy.diff(cupy.cuda.Device(devices.whoami_dev).mem_info)[0]/1024**2:1.1f}"
+                    " MiB on whoami_dev.")
 
 
     def _compute_wf_name_list(self, t_array):
@@ -688,8 +684,8 @@ class TimeEvolutionFramework:
                 del self.sparse_mats_dict
             except NameError:   # if the dict doesn't exist yet
                 pass
-            # create the new matrices, switching to whoami_device if applicable:
-            with whoami_device:
+            # create the new matrices, switching to whoami_dev if applicable:
+            with devices.whoami_dev:
                 if self.debug_verb > HILBERT_SPACE_LEVEL:
                     print(f"      {self.log_ind}.2: Beginning creation of matrix elements.")
                 diag_coo_debug = self.hamobj.generate_mel(cupy.asarray(select_whoami),
@@ -698,7 +694,7 @@ class TimeEvolutionFramework:
             del select_whoami
 
         # Now transfer to current_device, if necessary:
-        if whoami_device != vector_device:
+        if devices.split:
             t0 = time.time()
             diag_vals, new_inds = [cupy.asarray(i) for i in diag_coo_debug[0]]
             coo_dict = {term: (cupy.asarray(vals), (cupy.asarray(inds_to), cupy.asarray(inds_from)))
@@ -706,8 +702,8 @@ class TimeEvolutionFramework:
             debug_dict = {term: cupy.asarray(vals) for term, vals in diag_coo_debug[2].items()}
             if self.debug_verb > MOVE_DATA_TIMING_LEVEL:
                 t1 = time.time()
-                print(f"Moving data from device {whoami_device} to device {vector_device} took"
-                            f" {(t1-t0)*1000} ms.")
+                print(f"Moving data from device {devices.whoami_dev}"
+                            f" to device {devices.vector_dev} took {(t1-t0)*1000} ms.")
         else:
             (diag_vals, new_inds), coo_dict, debug_dict = diag_coo_debug
 
@@ -837,7 +833,7 @@ class TimeEvolutionFramework:
         del sorted_indices, sorted_vector
         select_whoami = self.use_module.array(
                                     select_whoami[self.use_module.lexsort(select_whoami.T[::-1])])
-        mempool.free_all_blocks()
+        devices.mempool.free_all_blocks()
 
         if self.debug_verb > HILBERT_SPACE_LEVEL:
             print(f"      {self.log_ind}.1: Determined important states"

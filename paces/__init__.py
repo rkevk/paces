@@ -12,4 +12,7 @@ There are four submodules:
             device_config.py and change it according to the available hardware.
 """
 
+from . import core, config, models
+
 __all__ = ["aux", "core", "models", "config"]
+__version__ = "1.0.0rc1"

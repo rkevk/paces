@@ -6,11 +6,12 @@ import sys
 
 import numpy
 import cupy     # pylint: disable=import-error
+import cupyx    # pylint: disable=import-error
 
 from . import _holstein_kernels as holke
 from ..aux import cupy_search
 from ..aux.helpers import cartesian_product, obs_attrs, debug_lister
-from ..config import *
+from ..config import INIT_VERBOSITY_LEVEL, SEARCHSORTED_TIMING_LEVEL, devices
 
 from ..core import HamiltonianFramework, MelTriple, ObservablesFramework, TimeEvolutionFramework
 
@@ -43,9 +44,9 @@ class Hamiltonian(HamiltonianFramework):
         self.input_args["max_ho_dims"]  = max_ho_dims
 
         self.posbitwidth    = int(self.use_module.ceil(self.use_module.log2(self.nchain)))
-        with vector_device:
+        with devices.vector_dev:
             self.qhobitwidth_v  = self.bitwidths_v[1:]
-        with whoami_device:
+        with devices.whoami_dev:
             self.qhobitwidth_w  = self.bitwidths_w[1:]
 
         self.periodic = False
@@ -62,9 +63,9 @@ class Hamiltonian(HamiltonianFramework):
 
     def get_phonon_at_exc(self, arr):
         """Get the number of phonons at the position of the exciton from a compressed 1D array"""
-        if arr.device   == vector_device:
+        if arr.device == devices.vector_dev:
             return holke.get_phonon_at_exc(arr, self.posbitwidth, self.qhobitwidth_v, self.wordsize)
-        if arr.device == whoami_device:
+        if arr.device == devices.whoami_dev:
             return holke.get_phonon_at_exc(arr, self.posbitwidth, self.qhobitwidth_w, self.wordsize)
         raise ValueError(f"Array is stored on an unknown device {arr.device}.")
 
@@ -78,10 +79,10 @@ class Hamiltonian(HamiltonianFramework):
             omega   = cupy.ones(self.nchain, dtype="float64")
         else:
             raise TypeError("Unrecognized type of omega.")
-        if arr.device   == vector_device:
+        if arr.device == devices.vector_dev:
             return holke.sum_all_phonons(
                                 omega, arr, self.posbitwidth, self.qhobitwidth_v, self.wordsize)
-        if arr.device == whoami_device:
+        if arr.device == devices.whoami_dev:
             return holke.sum_all_phonons(
                                 omega, arr, self.posbitwidth, self.qhobitwidth_w, self.wordsize)
         raise ValueError(f"Array is stored on an unknown device {arr.device}.")
@@ -118,17 +119,17 @@ class Hamiltonian(HamiltonianFramework):
 
     def add_phonon_at_exc(self, arr):
         """Add one phonon at the position of the exciton to arr (in-place)."""
-        if arr.device   == vector_device:
+        if arr.device == devices.vector_dev:
             holke.add_phonon_at_exc(arr, self.posbitwidth, self.qhobitwidth_v, self.wordsize)
-        elif arr.device == whoami_device:
+        elif arr.device == devices.whoami_dev:
             holke.add_phonon_at_exc(arr, self.posbitwidth, self.qhobitwidth_w, self.wordsize)
 
 
     def rem_phonon_at_exc(self, arr):
         """Remove one phonon at the position of the exciton to arr (in-place)."""
-        if arr.device   == vector_device:
+        if arr.device == devices.vector_dev:
             holke.rem_phonon_at_exc(arr, self.posbitwidth, self.qhobitwidth_v, self.wordsize)
-        elif arr.device == whoami_device:
+        elif arr.device == devices.whoami_dev:
             holke.rem_phonon_at_exc(arr, self.posbitwidth, self.qhobitwidth_w, self.wordsize)
 
     ############################################################################################
@@ -209,7 +210,7 @@ class Hamiltonian(HamiltonianFramework):
     @debug_lister(["ceiling_hits"])
     def generate_mel_vib_coupling(self, basis_states, raw_map_to=False):
         """Generate vibronic-coupling matrix elements."""
-        if basis_states.device == vector_device:
+        if basis_states.device == devices.vector_dev:
             max_ho_dims = self.max_dims_v[1:]
         else:
             max_ho_dims = self.max_dims_w[1:]
@@ -407,7 +408,7 @@ class Observables(ObservablesFramework):
                     upper_tri[left_i, right_i] = ((left_vec[left_search]
                                                 * self.use_module.conj(right_vec))[bool_arr]).sum()
                     del left_search, right_side, bool_arr
-                    mempool.free_all_blocks()
+                    devices.mempool.free_all_blocks()
 
         reduced_dm  = upper_tri + self.use_module.conj(self.use_module.triu(upper_tri, 1).T)
         return reduced_dm

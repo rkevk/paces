@@ -14,7 +14,7 @@ __all__ = ['expm_multiply', 'expm_multiply_simple']
 def _exact_inf_norm(A):
     # A compatibility function which should eventually disappear.
     if cupyx.scipy.sparse.isspmatrix(A):
-        return max(abs(A).sum(axis=1).flat)
+        return cupyx.scipy.sparse.linalg.norm(A, np.inf).item()
     elif isinstance(A, cupy.ndarray):
        return cupy.linalg.norm(A, np.inf)
     else:
@@ -23,7 +23,7 @@ def _exact_inf_norm(A):
 def _exact_1_norm(A):
     # A compatibility function which should eventually disappear.
     if cupyx.scipy.sparse.isspmatrix(A):
-        return max(abs(A).sum(axis=0).flat)
+        return cupyx.scipy.sparse.linalg.norm(A, 1).item()
     elif isinstance(A, cupy.ndarray):
         return cupy.linalg.norm(A, 1)
     else:
@@ -32,7 +32,7 @@ def _exact_1_norm(A):
 def _trace(A):
     # A compatibility function which should eventually disappear.
     if cupyx.scipy.sparse.isspmatrix(A):
-        return A.diagonal().sum()
+        return A.diagonal().sum().item()
     elif isinstance(A, cupy.ndarray):
         return cupy.trace(A)
     else:
@@ -50,7 +50,7 @@ def _ident_like(A):
         raise TypeError("Got an unexpected type while constructing the identity matrix.")
 
 
-def expm_multiply(A, B, start=None, stop=None, num=None, endpoint=None, return_debug=False):
+def expm_multiply(A, B, start=None, stop=None, num=None, endpoint=None, return_dbg=False):
     """
     Compute the action of the matrix exponential of A on B. See scipy.sparse.linalg.expm_multiply.
 
@@ -92,11 +92,11 @@ def expm_multiply(A, B, start=None, stop=None, num=None, endpoint=None, return_d
            19. 159-208. ISSN 0962-4929
            http://eprints.ma.man.ac.uk/1451/
     """
-    if all(arg is None for arg in (start, stop, num, endpoint)) and return_debug:
-        return expm_multiply_simple(A, B, return_debug=return_debug)
+    if all(arg is None for arg in (start, stop, num, endpoint)) and return_dbg:
+        return expm_multiply_simple(A, B, return_dbg=return_dbg)
         # this will return X, converged, final_m, c1, c1/_exact_inf_norm(F)
 
-    elif all(arg is None for arg in (start, stop, num, endpoint)) and not return_debug:
+    elif all(arg is None for arg in (start, stop, num, endpoint)) and not return_dbg:
         X = expm_multiply_simple(A, B)
     else:
         X, status = _expm_multiply_interval(A, B, start, stop, num, endpoint)
@@ -124,7 +124,7 @@ def expm_multiply_simple(A, B, t=1.0, balance=False, return_dbg=False):
     -------
     F : ndarray
         :math:`e^{t A} B`
-    If return_dbg, then the following are also returned *as a separate tuple*:
+    If return_dbg, then the following are also returned *as a separate list*:
     converged : bool
         If True, the algorithm converged; if False, then it exhausted the maximal order.
     final_m : int
@@ -164,10 +164,10 @@ def expm_multiply_simple(A, B, t=1.0, balance=False, return_dbg=False):
         ell = 2
         norm_info = LazyOperatorNormInfo(t*A, A_1_norm=t*A_1_norm, ell=ell)
         m_star, s = _fragment_3_1(norm_info, n0, tol, ell=ell)
-    return _expm_multiply_simple_core(A, B, t, mu, m_star, s, tol, balance, return_dbg=return_dbg)
+    return _expm_multiply_simple_core(A, B, t, mu, m_star, s, tol, return_dbg=return_dbg)
 
 
-def _expm_multiply_simple_core(A, B, t, mu, m_star, s, tol=None, return_debug=False):
+def _expm_multiply_simple_core(A, B, t, mu, m_star, s, tol=None, return_dbg=False):
     """
     A helper function.
     """
@@ -196,8 +196,8 @@ def _expm_multiply_simple_core(A, B, t, mu, m_star, s, tol=None, return_debug=Fa
             F = eta * F
         B = F
     del B
-    if return_debug:
-        return F, (converged, final_m, c1_plus_c2, term_ratio)
+    if return_dbg:
+        return F, [converged, final_m, c1_plus_c2, term_ratio]
     else:
         return F
 

@@ -517,9 +517,8 @@ class TimeEvolutionFramework:
         # Perform the actual time evolution step:
         #
         if self.expm_params.use_scaling:  # with scaling and squaring
-            self.create_ham_mat()
-            self.vector, expm_dbg = expm_multiply_simple(self.ham_mat, self.vector,
-                                                                t=1j*delta_t, return_dbg=True)
+            self.vector, expm_dbg = expm_multiply_simple(1j * self.ham_mat, self.vector,
+                                                                t=delta_t, return_dbg=True)
         else:                               # without scaling and squaring
             self.vector, expm_dbg = self._simple_taylor(delta_t)
 
@@ -736,6 +735,11 @@ class TimeEvolutionFramework:
 
         if self.debug_verb > HILBERT_SPACE_LEVEL:
             print(f"      {self.log_ind}.3: Inserted previous vector coefficients.")
+
+        if self.expm_params.use_scaling:
+            self.create_ham_mat()
+            if self.debug_verb > HILBERT_SPACE_LEVEL:
+                print(f"      {self.log_ind}.4: Created total Hamiltonian matrix.")
 
         return debug_dict, self._post_assignment_diagnostics()
 

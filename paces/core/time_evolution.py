@@ -344,13 +344,10 @@ class TimeEvolutionFramework:
     def create_matrices(self, diag_params, coo_dict):
         """Generate sparse matrices from diagonal values and coo_dict"""
         if self.use_module is numpy:
-            self.sparse_mats_dict   = {term: scipy.sparse.coo_matrix(coo,
-                                            shape=(self.numstates, self.numstates)).tocsr()
-                                            for term, coo in coo_dict.items()}
-        elif self.use_module is cupy:
-            self.sparse_mats_dict   = {term: cupyx.scipy.sparse.coo_matrix(coo,
-                                            shape=(self.numstates, self.numstates)).tocsr()
-                                            for term, coo in coo_dict.items()}
+            raise NotImplementedError("Using NumPy instead of CuPy is not fully implemented.")
+        self.sparse_mats_dict   = {term: cupyx.scipy.sparse.coo_matrix(coo,
+                                        shape=(self.numstates, self.numstates)).tocsr()
+                                        for term, coo in coo_dict.items()}
         self.diag_vals          = diag_params
 
 

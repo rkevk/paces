@@ -397,12 +397,13 @@ class Observables(ObservablesFramework):
                     # all(right_side[searchsorted(...)] == left_side, axis=1) is a mask that is true
                     #   only where the values of left_side occur exactly in right_side.
                     t0 = time.time()
-                    left_search     = cupy_search.searchsorted_multidim_list(left_side, right_side,
-                                            allow_escapes=True, linear_only=False, mindiff=mindiff)
+                    left_search = cupy_search.searchsorted_multidim_list_8bits(
+                                            left_side, right_side,
+                                            allow_escapes=True, linear_only=False,
+                                            mindiff=mindiff)
                     if self.teobj.debug_verb > SEARCHSORTED_TIMING_LEVEL:
-                        t1 = time.time()
                         print("This application of searchsorted_multidim_list took"
-                                f" {(t1-t0)*1000} ms (arg sizes {left_side.shape[0]},"
+                                f" {(time.time() - t0)*1000} ms (arg sizes {left_side.shape[0]},"
                                 f" {right_side.shape[0]}).")
                     bool_arr    = cupy.all(left_side[left_search] == right_side, axis=1)
                     upper_tri[left_i, right_i] = ((left_vec[left_search]
@@ -542,11 +543,24 @@ class TimeEvolution(TimeEvolutionFramework):
         if self.debug_verb > INIT_VERBOSITY_LEVEL:
             print("Done!")
 
-    ###################################
-    # generate tensor product phonon state (requires an existing basis set)
-    # XXX add docstring
-    ###################################
     def create_tensor_init_state(self, bstates, coeffs, excsite, sites="all"):
+        r"""
+        Generate a localized-exciton/tensor-product phonon state (requires an existing basis set).
+
+        In other words, the initial vector of the TimeEvolution is set to a state
+        |k> \otimes [\bigotimes_{l \in L} (\sum_j c_j |j_l>)],
+        where k is the position of the exciton,
+        l is the index of the phonon modes with L the set of phonon modes that are occupied,
+        and j is the index of the Fock state with coefficients c_j.
+        All phonon modes that are not in the set L will simply get the local vacuum state.
+
+        Args:
+            bstates (ndarray of uint): The Fock-state indices j which the coefficients refer to.
+            coeffs (ndarray of complex): The Fock-state coefficients c_j.
+            excsite (uint): The position of the exciton.
+            sites (iterable of uints or "all"): The set L over which the tensor product is taken.
+                The special value "all" takes the tensor product over all sites. Default: "all".
+        """
         bstates = numpy.asarray(bstates)
         coeffs  = numpy.asarray(coeffs, dtype=complex)
         if sites != "all" and len(sites) > self.hamobj.nchain:
@@ -587,7 +601,7 @@ class PhononRedDensityMatrix:
         """Calculate the phononic reduced density matrix at a given site from a given vector."""
         occs        = self.get_phonon_occ(whoami, site)
         uniques     = cupy.unique(occs)
-        adagger     = self.csr_adagger(whoami, site)
+        adagger     = self.offdiag1_csr(whoami, site)
         dim         = self.qho_dims[site]
         upper_tri   = cupy.zeros((dim, dim), dtype=complex)
         rightvec    = vector.copy()
@@ -604,12 +618,10 @@ class PhononRedDensityMatrix:
         reduced_dm  = upper_tri + cupy.conj(cupy.triu(upper_tri, 1).T)
         return reduced_dm
 
-
-    ###################################
-    # generate phonon adagger csr matrix, but without sqrt prefactor
-    ###################################
-    def csr_adagger(self, basis_states, site):
-        plus_inds       = self.generate_mel_adagger_noprefac(basis_states, site)
+    def offdiag1_csr(self, basis_states, site):
+        """Generate a CSR first off-diagonal matrix (like a^+ without the numeric factor)."""
+        plus_inds               = basis_states.copy()
+        self.add_n_to_qho(plus_inds, 1, site)   # now plus_inds have one more phonon at the site
         inds_to         = self.searchsorted(basis_states, plus_inds, allow_escapes=True)
         mask            = cupy.all(basis_states[inds_to] == plus_inds, axis=1)
         numbs           = len(basis_states)
@@ -617,12 +629,3 @@ class PhononRedDensityMatrix:
                       (cupy.ones(mask.sum().item()),
                           (inds_to[mask], cupy.arange(numbs, dtype=inds_to.dtype)[mask])),
                     shape=(numbs, numbs)).tocsr()
-
-
-    ###################################
-    # generate creation operator matrix elements, but without sqrt prefactor
-    ###################################
-    def generate_mel_adagger_noprefac(self, basis_states, site):
-        plus_inds               = basis_states.copy()
-        self.add_n_to_qho(plus_inds, 1, site)
-        return plus_inds

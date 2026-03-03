@@ -628,8 +628,9 @@ class TimeEvolutionFramework:
             print(f"Used {cupy.get_default_memory_pool().used_bytes()/1024**2:1.1f} or"
                     f" {numpy.diff(cupy.cuda.Device(devices.vector_dev).mem_info)[0]/1024**2:1.1f}"
                     " MiB on vector_dev.")
-            with cupy.cuda.Device(devices.whoami_dev):
-                print(f"Used {cupy.get_default_memory_pool().used_bytes()/1024**2:1.1f} or"
+            if devices.split:
+                with cupy.cuda.Device(devices.whoami_dev):
+                    print(f"Used {cupy.get_default_memory_pool().used_bytes()/1024**2:1.1f} or"
                     f" {numpy.diff(cupy.cuda.Device(devices.whoami_dev).mem_info)[0]/1024**2:1.1f}"
                     " MiB on whoami_dev.")
 

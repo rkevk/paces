@@ -469,8 +469,8 @@ class HamiltonianFramework:
             coo_dict[term]  = self._add_hc_and_generate_coo(new_inds, basis_lookup, len_dict[term],
                                                             melpack)
             if self.debug_verb > MEM_INFO_LEVEL:
-                print("          Near-maximal memory usage on whoami_dev, est. 1:"
-                            f" {cupy.get_default_memory_pool().used_bytes()/1024**2} MiB")
+                print("          Estimated near-maximal memory usage on whoami_dev:"
+                            f" {int(cupy.get_default_memory_pool().used_bytes()/1024**2)} MiB")
             del melpack
 
         if self.debug_verb > HILBERT_SPACE_DETAILED_LEVEL:

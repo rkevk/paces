@@ -64,11 +64,9 @@ obs_list = ["n_pho", "n_exc", "total_energy"]
 ###############################
 # directory under which to save the data:
 # (this directory has to be created before running this code!)
-parent_dir  = "../../paces_results/example/"
-dirname = parent_dir + f"n{nchain}_d{max_ho_dim}_g{term_param_dict['vib_coupling']['g']}"
-# (for the default configuration, dirname = "../../paces_results/example/n25_d128_g4.0/")
+dirname = "results/example"
 # name of the parameter file to save to:
-params_file = dirname + "/paces_holstein_test_params.log"
+params_file = os.path.join(dirname, "paces_holstein_test_params.log")
 
 ###############################
 # timeline parameters:
@@ -77,7 +75,7 @@ params_file = dirname + "/paces_holstein_test_params.log"
 coeff_save_obj  = CoeffSaveParams(save_every=200, save_first=True, save_last=True)
 
 timeline_params = dict(
-    t_array = numpy.arange(0.00, 50.05, 0.05),  # timesteps which will be computed
+    t_array = numpy.arange(0.00, 5.05, 0.05),  # timesteps which will be computed
     coeff_save_obj = coeff_save_obj,
     )
 

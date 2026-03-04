@@ -1,11 +1,11 @@
-# paces: Parallelized Application of Co-Evolving Subspaces
+# `paces`: Parallelized Application of Co-Evolving Subspaces
 ## A method for computing quantum dynamics on GPUs
 The `main` branch will be updated with new features to support a wider variety of models.
 If you are interested in the single-exciton Holstein version that was used to create the initial data
 shown in the publication `[link to be inserted here]`, please see the [holstein_only](https://github.com/rkevk/paces/tree/holstein_only) branch instead.
 
 ## Dependencies:
-This code requires [CuPy](https://cupy.dev) and its dependencies,
+This code requires an NVIDIA GPU with [CuPy](https://cupy.dev) and its dependencies,
 chiefly [Python 3](https://python.org), [NumPy](https://numpy.org)
 and [CUDA](https://developer.nvidia.com/cuda-gpus).
 It has been tested with the following versions:
@@ -15,29 +15,46 @@ It has been tested with the following versions:
 * Python from 3.10 up to 3.13.3
 
 ## Running a calculation with an existing model
-After cloning the repository, choose a model to run from the `models` submodule and then do the following.
+After cloning the repository, choose a model to run from the `models` submodule
+and then use a script to call the functions of the model.
 
-We will use the example calculation given in `main_example.py` (a single-exciton 1D Holstein chain),
-located in the same directory as this `README.md`. This shall also be the working directory of our shell.
-Say we want to store our files in `../../paces_results/example/`.
+We will demonstrate this procedure using the example calculation
+given in `main_example.py`, a single-exciton 1D Holstein chain.
+The results of this calculation will be stored in the directory `results/example`
+(the results directory is given by the `dirname` variable in `main_example.py`).
+This procedure assumes that you do not move the location of the `main_example.py` file,
+i.e., that `main_example.py` is in the root directory of the git repository and, therefore,
+in the parent directory of the `paces` module&mdash;see below for
+instructions on how to install `paces` as a package that can be used from arbitrary working directories.
 
-Then the steps are:
-1. Ensure that the calculation directory `../../paces_results/example/` exists.
-2. Set the parameters of the calculation as desired in the main wrapper file `main_example.py`.
-3. Run the calculation using `python3 main_example.py`.
+To run the example calculation of `main_example.py`:
+First create the calculation directory,
+```
+mkdir results
+mkdir results/example
+```
+Then, if desired, adjust the parameters of the calculation in the main wrapper file `main_example.py`.
+Finally, run the calculation using
+```
+python3 main_example.py
+```
+If the calculation crashes with an `OutOfMemoryError`, try decreasing the `maxstates`
+parameter contained in the `te_params` object in `main_example.py`.
 
 By default, the calculation directory specified within `main_example.py` is given as a
 relative path to `main_example.py` itself, not to the location from which it is called.
 To change this behavior, remove the `os.chdir` call from the start of the file (or use absolute paths).
 
-### Installing `paces` for use from other locations
-`paces` can also be installed via pip if you would like to import it as a library
-from an arbitrary working directory (preferably in a [venv](https://docs.python.org/3/library/venv.html)).
+## Installing `paces` for use from other locations
+`paces` can also be installed via pip (preferably in a [venv](https://docs.python.org/3/library/venv.html))
+if you would like to import it as a library from an arbitrary working directory.
 Due to the way CuPy is packaged and interfaces with CUDA, this is slightly non-trivial.
 Note that you will need to download the file `main_example.py` separately from GitHub
-if installing `paces` via pip.
+if installing `paces` via pip with git.
 
-#### If you already have a working CuPy installation...
+The installation procedure differs depending on whether or not you already have a working CuPy installation:
+
+### If you already have a working CuPy installation...
 ... then you can simply run either
 ```
 pip install /path/to/downloaded/repo
@@ -48,7 +65,7 @@ pip install "paces @ git+https://github.com/rkevk/paces.git"
 ```
 to install directly from GitHub.
 
-#### If you don't have a working CuPy installation yet...
+### If you don't have a working CuPy installation yet...
 ... then you at least need a working CUDA installation including nvcc (part of the dev toolkit).
 Once you have a working CUDA installation, you can install `paces` and CuPy at the same time
 by specifying the version of CUDA you have installed, e.g.:

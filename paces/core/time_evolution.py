@@ -16,6 +16,7 @@ import numpy
 import cupy     # pylint: disable=import-error
 import cupyx    # pylint: disable=import-error
 
+from .. import __version__
 from ..aux import expm_multiply_simple
 from ..aux.helpers import flatten_dbg_dict
 from ..config import *
@@ -203,7 +204,12 @@ class TimeEvolutionFramework:
 
     def initialize_params_file(self):
         """Write the header and main parameters to the central parameter file."""
+        ver_string = f"### paces version {__version__} ###"
+        hashes = "#" * len(ver_string) + "\n"
         with open(self.params_file, "w", encoding="utf-8") as pf:
+            pf.write(hashes)
+            pf.write(ver_string + "\n")
+            pf.write(hashes + "\n")
             pf.write("### Hilbert space constructed from"
                         f" {self.hamobj.__class__.__module__}.{self.hamobj.__class__.__name__}"
                         " with the following parameters:\n")

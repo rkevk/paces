@@ -13,15 +13,31 @@ from paces.core import CoeffSaveParams, ExpmParams, TimeEvoParams
 if os.path.dirname(sys.argv[0]) != '':
     os.chdir(os.path.dirname(sys.argv[0]))
 
+
 ####################################################################################################
+# "Master" settings
+####################################################################################################
+
 # configure device and memory settings; the defaults will select a single GPU for everything:
 devices.configure()
 
-####################################################################################################
+###############################
 # debugging verbosity (for printing to stdout):
-debug_verb      = 6
+debug_verb = 6
 
 ###############################
+# directory in which the data will be saved:
+# (this directory has to be created before running this code!)
+dirname = "results/example"
+
+# name of the parameter file to save to:
+params_file = os.path.join(dirname, "paces_holstein_test_params.log")
+
+
+####################################################################################################
+# Model-specific Hilbert-space and Hamiltonian settings
+####################################################################################################
+
 # Hilbert space parameters:
 nchain          = 25        # number of sites on the Holstein chain
 max_ho_dim      = 128       # we use this max. phonon mode dimension for each site
@@ -44,9 +60,18 @@ term_param_dict = {
 
 ###############################
 # Initial state position:
-initpos     = nchain//2
+initpos = nchain//2
 # Proportion of maxstates to occupy with the initial basis set:
-fillfac     = 0.3
+fillfac = 0.3
+
+###############################
+# list of observables to compute:
+obs_list = ["n_pho", "n_exc", "total_energy"]
+
+
+####################################################################################################
+# General time-evolution settings
+####################################################################################################
 
 ###############################
 # general parameters for the time evolution:
@@ -58,26 +83,15 @@ te_params = TimeEvoParams(
     )
 
 ###############################
-# list of observables to compute:
-obs_list = ["n_pho", "n_exc", "total_energy"]
-
-###############################
-# directory under which to save the data:
-# (this directory has to be created before running this code!)
-dirname = "results/example"
-# name of the parameter file to save to:
-params_file = os.path.join(dirname, "paces_holstein_test_params.log")
+# how often to save the coefficients:
+coeff_save_obj = CoeffSaveParams(save_every=200, save_first=True, save_last=True)
 
 ###############################
 # timeline parameters:
-
-# how often to save the coefficients:
-coeff_save_obj  = CoeffSaveParams(save_every=200, save_first=True, save_last=True)
-
-timeline_params = dict(
-    t_array = numpy.arange(0.00, 5.05, 0.05),  # timesteps which will be computed
-    coeff_save_obj = coeff_save_obj,
-    )
+timeline_params = {
+    "t_array": numpy.arange(0.00, 5.05, 0.05),  # timesteps which will be computed
+    "coeff_save_obj": coeff_save_obj,
+    }
 
 ###############################
 # parameters to use for the matrix exponentiation, we leave them at their defaults:
@@ -90,7 +104,7 @@ expm_params     = ExpmParams()
 with devices.vector_dev:
     ##############################################################
     # Generate the fundamental Hilbert space:
-    hamobj  = holstein.Hamiltonian(
+    hamobj = holstein.Hamiltonian(
                 nchain = nchain,
                 max_ho_dims = [max_ho_dim,]*nchain,
                 use_terms = term_param_dict,
@@ -98,8 +112,8 @@ with devices.vector_dev:
                 )
 
     ##############################################################
-    # Instantiate the general time_evolution object:
-    te	    = holstein.TimeEvolution(
+    # Initialize the general time_evolution object:
+    te = holstein.TimeEvolution(
                 hamobj,
                 holstein.Observables,
                 obs_list,
@@ -110,10 +124,13 @@ with devices.vector_dev:
                 )
 
     ##############################################################
-    # Create an initial basis set and initial vector:
-
+    # Create an initial basis set consisting of 0 phonons everywhere and a localized particle:
     te.create_nonuniform_basis([1,]*nchain, minpos=initpos, maxpos=initpos+1)
+
+    # Enlarge the initial basis set:
     te.grow_optimal_basis(fillfac=fillfac)
+
+    # Create the initial vector in this basis:
     te.create_initial_vector(vector_coeffs=[1], vector_coo=[[initpos,] + nchain*[0,]],
                                 auto_normalize=True)
 

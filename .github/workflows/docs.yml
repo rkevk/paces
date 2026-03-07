@@ -1,23 +1,27 @@
 name: Sphinx Documentation
 
-on:
-  push:
-  pull_request:
+on: [push, pull_request, workflow_dispatch]
 
 permissions:
   contents: write
   
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest    
     steps:
       - uses: actions/checkout@v4
-      - uses: ahmad88me/sphinx-docs-action@v0.7
+      - uses: actions/setup-python@v5
+      - name: Install dependencies
+        run: |
+          pip install sphinx sphinx-autoapi sphinx-book-theme
+      - name: Sphinx build
+        run: |
+          sphinx-build -b html doc doc/_build
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/sphinx-test' }}
         with:
-          python-version: '3.10'
-          git-username: 'rkevk'
-          git-email: 'rkevk@users.noreply.github.com'
-          project-path: 'paces'
-          files-pattern: '*example.py'
-          commit-message: 'update docs'
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: doc/_build/
+          force_orphan: true

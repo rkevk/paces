@@ -4,6 +4,9 @@ The `main` branch will be updated with new features to support a wider variety o
 If you are interested in the single-exciton Holstein version that was used to create the initial data
 shown in the publication `[link to be inserted here]`, please see the [holstein_only](https://github.com/rkevk/paces/tree/holstein_only) branch instead.
 
+For a more detailed description of the API, check the source docstrings or the documentation at
+https://rkevk.github.io/paces, particularly if you are interested in extending the method to new Hamiltonian models.
+
 ## Dependencies:
 This code requires an NVIDIA GPU with [CuPy](https://cupy.dev) and its dependencies,
 chiefly [Python 3](https://python.org), [NumPy](https://numpy.org)

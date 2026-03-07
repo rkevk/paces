@@ -24,7 +24,7 @@ def calc_partition_lens(partition_by, uniquevals):
             but every value in partition_by must indeed occur in uniquevals.
 
     Returns:
-        lens (1D cupy.ndarray): The length of each repeating block in partition_by.
+        1D cupy.ndarray: The length of each repeating block in partition_by.
     """
     if partition_by.ndim != 1 or uniquevals.ndim != 1:
         raise ValueError("This function only takes 1D arrays as input.")

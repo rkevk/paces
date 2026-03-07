@@ -374,7 +374,7 @@ class TimeEvolutionFramework:
                 else use only the constituent matrices and diagonal values. Default: False.
 
         Returns:
-            res (ndarray): The result of applying H to the vector.
+            1D ndarray: The result of applying H to the vector.
         """
         if use_ham_mat:
             return self.ham_mat @ vector
@@ -394,7 +394,7 @@ class TimeEvolutionFramework:
                 else use only the constituent matrices and diagonal values. Default: False.
 
         Returns:
-            B: The result of applying H to the vector of all ones.
+            1D ndarray: The result of applying H to the vector of all ones.
         """
         if use_ham_mat:
             return self.ham_mat.sum(axis=1).flatten()
@@ -792,8 +792,8 @@ class TimeEvolutionFramework:
                 Default: -1 (disable garbage_tol).
 
         Returns:
-            select_whoami (1D ndarray): the new, lexicographically sorted, lookup array after
-                (potentially shuffling and) truncating to the `maxstates` most important states.
+            1D ndarray: The new, lexicographically sorted, lookup array after
+            (potentially shuffling and) truncating to the `maxstates` most important states.
         """
         if use_weight_function:
             if tau == 0:

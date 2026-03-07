@@ -49,7 +49,7 @@ def get_phonon_at_exc(basis_states, posbitwidth, qhobitwidth, wordsize=32):
         wordsize (int): The wordsize that basis_states is given in. Default: 32.
 
     Returns:
-        pops (1D array): phonon occupation numbers. Length of array equals that of basis_states.
+        1D array: phonon occupation numbers at the exc. Length of array equals that of basis_states.
     """
     return _GenPhononAtExc(basis_states, posbitwidth, qhobitwidth, wordsize).get_occ()
 
@@ -69,7 +69,7 @@ def sum_all_phonons(omega_arr, basis_states, posbitwidth, qhobitwidth, wordsize=
         wordsize (int): The wordsize that basis_states is given in. Default: 32.
 
     Returns:
-        energies (1D array): phonon occupation numbers. Length of array equals that of basis_states.
+        1D array: total phonon occupation numbers. Length of array equals that of basis_states.
     """
     return _GenPhononAtExc(basis_states, posbitwidth, qhobitwidth, wordsize).sum_all(omega_arr)
 
@@ -87,7 +87,7 @@ def calculate_bath_n_b(weights, basis_states, posbitwidth, qhobitwidth, wordsize
         wordsize (int): The wordsize that basis_states is given in. Default: 32.
 
     Returns:
-        expvals (1D array): phonon occupation numbers. Length of array equals the number of QHOs.
+        1D array: average phonon occupation numbers. Length of array equals the number of QHOs.
     """
     return _GenAllPhonon(basis_states, posbitwidth, qhobitwidth, wordsize).bath_n_b(weights)
 

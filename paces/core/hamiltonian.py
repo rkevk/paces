@@ -6,7 +6,7 @@ import time
 import sys
 import abc
 
-from collections import namedtuple
+from typing import NamedTuple
 
 import numpy
 import cupy     # pylint: disable=import-error
@@ -24,16 +24,22 @@ if not (py_version.major > 3 or (py_version.major == 3 and py_version.minor >= 1
 
 ####################################################################################################
 
-MelTriple   = namedtuple("MelTriple", ["inds", "vals", "mask"])
-MelTriple.__doc__ += ": Format used for the data produced by matrix-element generation functions."
-MelTriple.inds.__doc__ += ": Array of (compressed) indices that the term maps each basis state to."
-MelTriple.vals.__doc__ += (": Array of matrix elements between `inds` and the input basis states."
-                            " `vals` may also be a number if all matrix elements are identical.")
-MelTriple.mask.__doc__ += (": The mask to apply to the input basis states, i.e.,"
-                           " a mask specifying if the basis states mapped to zero."
-                           " The len of `inds` and `vals` must match the number of True in `mask`."
-                           " This mask must also ensure that the hermitian conjugate will not"
-                           " contain any duplicates.")
+class MelTriple(NamedTuple):
+    """
+    Format used for the data produced by matrix-element generation functions.
+
+    Args:
+        inds: An array of (compressed) indices that the term maps each basis state to.
+        vals: An array of matrix elements between `inds` and the input basis states.
+            `vals` may also be a single number if all matrix elements are identical.
+        mask: The mask to apply to the input basis states, i.e., a mask specifying if
+            the basis states mapped to zero. The len of `inds` and `vals` must match
+            the number of True in `mask`.
+            This mask must also ensure that the hermitian conjugate will not contain any duplicates.
+    """
+    inds: cupy.ndarray
+    vals: cupy.ndarray | complex
+    mask: cupy.ndarray
 
 ####################################################################################################
 
@@ -45,33 +51,33 @@ class HamiltonianFramework:
     which is then repeatedly called to perform all basic actions within the Hilbert space.
 
     The user must add model-specific features via children of this object.
-    See the ../../paces/models folder for examples of existing models.
+    See the `../../paces/models` folder for examples of existing models.
 
     In particular, each concretized subclass must contain all Hamiltonian-term-generating methods
     that can be combined to yield the total Hamiltonian.
-    The names of these functions must begin with generate_mel_, e.g., generate_mel_hopping,
+    The names of these functions must begin with generate_mel_, e.g., `generate_mel_hopping`,
     where the part after the prefix is used to identify and call said term (here: hopping).
-    Each such generate_mel_xyz function must take exactly two inputs,
-        (basis_states, raw_map_to),
-    and the return signature depends on raw_map_to:
-        1. If it is False, then the return signature must be:
-            ((meltriple0, meltriple1, meltriple2, ...), debug_info).
-        The first return argument is an iterable of MelTriple instances,
-        and the second, i.e., debug_info, may be None (see below for comments on debug_info).
-        The meltriples must conform to the standard given in MelTriple, i.e.,
+    Each such `generate_mel_xyz` function must take exactly two inputs,
+        `(basis_states, raw_map_to)`,
+    and the return signature depends on the bool `raw_map_to`:
+        1. If it is `False`, then the return signature must be:
+            `((meltriple0, meltriple1, meltriple2, ...), debug_info)`.
+        The first return argument is an iterable of `MelTriple` instances,
+        and the second, i.e., `debug_info`, may be `None` (see below for comments on `debug_info`).
+        The `meltriple`s must conform to the standard given in `MelTriple`, i.e.,
         care must be taken to avoid duplication even when the hermitian conjugate is formed later.
 
-        2. If raw_map_to is True, then the return signature must be:
-            (ind0, ind1, ind2, ...),
+        2. If `raw_map_to` is `True`, then the return signature must be:
+            `(ind0, ind1, ind2, ...)`,
         which is a tuple of (compressed) index arrays indicating which basis states
-        form the image of said Hamiltonian term when applied to the given basis_states.
+        form the image of said Hamiltonian term when applied to the given `basis_states`.
         These may be non-unique, overlapping, etc., which will be taken care of later.
-    If debug_info is not None, then it must be an iterable of debugging info that will be saved
-    to file if the diagnostics option is used in the TimeEvolution.
+    If `debug_info` is not None, then it must be an iterable of debugging info that will be saved
+    to file if the diagnostics option is used in the `TimeEvolution`.
     The header that is used for this debugging info must be provided
-    by applying the decorator @debug_lister to the generate_mel_xyz function.
+    by applying the decorator `@debug_lister` to the `generate_mel_xyz` function.
 
-    Every subclass must also override the diagonal-term function generate_mel_diag:
+    Every subclass must also override the diagonal-term function `generate_mel_diag`:
     This must return only a single array of floats and nothing else.
     """
     __metaclass__ = abc.ABCMeta
@@ -109,7 +115,7 @@ class HamiltonianFramework:
             debug_verb (int): The level of verbosity to use (prints debugging info to stdout).
                 Higher values increase the verbosity. Default: 0 (prints nothing).
             search_mindiff (uint): A threshold for switching from binary to linear searches.
-                This is irrelevant if wordsize != 8. Default: 32.
+                This is irrelevant if `wordsize != 8`. Default: 32.
         """
         if not devices.configure_called:
             raise NameError("The CUDA devices must be configured before starting the calculation"
@@ -180,8 +186,8 @@ class HamiltonianFramework:
                 for those rows will be nonsense). Default: False.
 
         Returns:
-            indices (cupy.ndarray): Shape-(L,) array of indices giving the location of each row
-                of findme in phonebook, i.e., phonebook[indices] is equal to findme.
+            cupy.ndarray: Shape-(L,) array of indices giving the location of each row
+            of `findme` in `phonebook`, i.e., `phonebook[indices]` is equal to `findme`.
         """
         if self.dtype == cupy.uint8:
             return cupy_search.searchsorted_multidim_list_vanilla(
@@ -262,12 +268,15 @@ class HamiltonianFramework:
             index (uint): index of site in question.
 
         Returns:
-            word_i (uint): index of first word containing the block of the site in question.
-            num2bits (uint): (wordsize) + (# of relevant bits in the word following the first word).
-                Note that num2bits == wordsize is "zero", i.e., the next word has no relevant bits
-                if num2bits == wordsize; and if num2bits < wordsize, then there are extraneous bits
-                at the end of the first word.
-            numlead (uint): number of leading bits in first word that must be trimmed.
+            A tuple `(word_i, num2bits, numlead)` of positive integers, where:
+
+            `word_i` is the index of first word containing the block of the site in question.
+            `num2bits` is (`wordsize`) + (# of relevant bits in the word following the first word).
+            `numlead` is the number of leading bits in first word that must be trimmed.
+
+            Note that `num2bits == wordsize` is "zero", i.e., the next word has no relevant bits
+            if num2bits == wordsize; and if num2bits < wordsize, then there are extraneous bits
+            at the end of the first word.
         """
         bitwidths = self.bitwidths_v if arr.device == devices.vector_dev else self.bitwidths_w
         # number of bits preceding the block in question (= index of first relevant bit):
@@ -290,11 +299,11 @@ class HamiltonianFramework:
         Take a compressed 1D index array `arr` and return an array of the basis numbers at a site.
 
         Args:
-            arr (1D compressed array of self.dtype): array of compressed basis states.
+            arr (1D compressed array of `self.dtype`): array of compressed basis states.
             index (uint): index of site at which to extract the basis state numbers.
 
         Returns:
-            result (1D array of self.dtype): array of basis state numbers at site `index`.
+            A 1D array (of `self.dtype`) of basis state numbers at site `index`.
         """
 
         word_i, num2bits, numlead = self._get_compression_inds(arr, index)
@@ -389,11 +398,17 @@ class HamiltonianFramework:
             log_ind (int): The number to use for debug printing.
 
         Returns:
-            (diag_vals, new_inds) (ndarray, ndarray): The diagonal values and new compressed indices
-                after enlarging the Hilbert space.
-            coo_dict (dict): A dictionary whose keys corresponds to those of self.use_terms
-                and whose vals can be fed into a sparse COO matrix generation routine.
-            dbg_dict (dict): A dictionary containing extra diagnostic data provided by the terms.
+            A tuple `((diag_vals, new_inds), coo_dict, dbg_dict)`,
+            where:
+
+            `diag_vals` is a 1D array of diagonal matrix elements after enlarging the Hilbert space.
+
+            `new_inds` is the compressed 2D array of the new, compressed basis state indices.
+
+            `coo_dict` is a dictionary whose keys corresponds to those of self.use_terms
+            and whose vals can be fed into a sparse COO matrix generation routine.
+
+            `dbg_dict` is a dictionary containing extra diagnostic data provided by the terms.
         """
         if basis_states.shape[1] != self.totwordwidth:
             raise ValueError("Shape of basis states does not match the specified number of bits.")
@@ -489,12 +504,16 @@ class HamiltonianFramework:
             basis_lookup (1D ndarray): positions of old basis states in new_inds.
             len_list (iterable of ints): Number of basis states that do not map to zero
                 under the data given in melpack. The len of len_list must match the len of melpack.
-            melpack (iterable of MelTriple): Set of MelTriples to be processed.
+            melpack (iterable of `MelTriple`): Set of `MelTriple`s to be processed.
                 Note that the dtype of all vals must be identical.
 
         Returns:
-            vals (complex): Values of the matrix elements.
-            (inds_to, inds_from) (two 1D ndarrays of uints): To and from indices for COO matrices.
+            A tuple `(vals, (inds_to, inds_from))`,
+            where:
+
+            `vals` is the 1D array of values of the matrix elements.
+
+            `inds_to` and `inds_from` are two 1D arrays of indices for constructing COO matrices.
         """
         inds_from   = self.use_module.empty(2 * sum(len_list), dtype=self.dtype)
         inds_to     = self.use_module.empty_like(inds_from)

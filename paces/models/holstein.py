@@ -150,13 +150,13 @@ class Hamiltonian(HamiltonianFramework):
                 the matrix elements themselves. This changes the return signature. Default: False.
 
         Returns:
-            If raw_map_to:
-                plus_inds, minus_inds (1D compressed arrays): basis states that are mapped to.
-            If not raw_map_to:
-                (plus_meltriple, minus_meltriple) (2-tuple of MelTriples):
-                    Right- and left-hopping meltriples, with terms that would cause
-                    duplication from the hermitian conjugation removed.
-                debug_info (None): None.
+            If `raw_map_to`, then a tuple `(plus_inds, minus_inds)`,
+            which are both compressed arrays representing the basis states that are mapped to.
+
+            If not `raw_map_to`, then a tuple `((plus_meltriple, minus_meltriple), debug_info)`,
+            where the first two are both `MelTriple`s representing right and left hopping.
+            Here, terms that would cause duplication from the hermitian conj. have been removed.
+            `debug_info` is always `None`.
         """
         if order < 1 or order > self.nchain:
             raise ValueError("Invalid value for order of hopping operator.")

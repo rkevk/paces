@@ -1,6 +1,8 @@
 """
 Debug verbosity levels used throughout the program.
 
+(Note that the auto-generated documentation is incomplete: See inline comments in the source file.)
+
 These values may be modified to customize the default debugging verbosity levels,
 but the main parameter that governs the verbosity of a single calculation is the
 debug_verb argument passed to a subclass of HamiltonianFramework upon instantiation.

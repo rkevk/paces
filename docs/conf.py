@@ -48,7 +48,7 @@ def linkcode_resolve(domain, info):
     else:
         module, class_name, mname = find_module_and_name(info["fullname"])
 
-    filename = "../" + module.replace(".", "/") + ".py"
+    filename = module.replace(".", "/") + ".py"
     try:
         tree = ast.parse(Path(filename).read_text())
     except FileNotFoundError: # if the path is a module

@@ -51,7 +51,7 @@ class HamiltonianFramework:
     which is then repeatedly called to perform all basic actions within the Hilbert space.
 
     The user must add model-specific features via children of this object.
-    See the `../../paces/models` folder for examples of existing models.
+    See the `paces.models` submodule for examples of existing models.
 
     In particular, each concretized subclass must contain all Hamiltonian-term-generating methods
     that can be combined to yield the total Hamiltonian.

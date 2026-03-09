@@ -13,7 +13,9 @@ from ..aux import cupy_search
 from ..aux.helpers import cartesian_product, obs_attrs, debug_lister
 from ..config import INIT_VERBOSITY_LEVEL, SEARCHSORTED_TIMING_LEVEL, devices
 
-from ..core import HamiltonianFramework, MelTriple, ObservablesFramework, TimeEvolutionFramework
+from ..core.hamiltonian import HamiltonianFramework, MelTriple
+from ..core.observables import ObservablesFramework
+from ..core.time_evolution import TimeEvolutionFramework
 
 ####################################################################################################
 

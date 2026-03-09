@@ -7,7 +7,7 @@ import numpy
 
 from paces.config import devices
 from paces.models import holstein
-from paces.core import CoeffSaveParams, ExpmParams, TimeEvoParams
+from paces.core.time_evolution import CoeffSaveParams, ExpmParams, TimeEvoParams
 
 # This makes relative paths refer to the location of this script:
 if os.path.dirname(sys.argv[0]) != '':

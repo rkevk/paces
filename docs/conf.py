@@ -63,7 +63,7 @@ def linkcode_resolve(domain, info):
         else:
             res = get_method_lines(tree, class_name, mname)
 
-    url_str = filename[3:]
+    url_str = filename
     if res is not None:
         start, end = res
         url_str += f"#L{start}-L{end}"

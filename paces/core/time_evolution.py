@@ -418,10 +418,10 @@ class TimeEvolutionFramework:
         and an initial vector (via te.create_initial_vector(args) or by loading from file).
 
         Args:
-        t_array (ndarray of floats): The points in time. The initial state is assumed to correspond
-            to the first time value in t_array. Then evolve step-by-step until the last value in
-            t_array is reached.
-        coeff_save_obj: Instance of CoeffSaveParams (contains data on when to save coefficients).
+            t_array (ndarray of floats): The points in time.
+                The initial state is assumed to correspond to the first time value in t_array.
+                Then this function evolves step-by-step until the last value in t_array is reached.
+            coeff_save_obj: Instance of CoeffSaveParams (information on when to save coefficients).
         """
         if self.debug_verb > INIT_VERBOSITY_LEVEL:
             print("Setting up generate_timeline function...")

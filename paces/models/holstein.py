@@ -8,7 +8,7 @@ import numpy
 import cupy     # pylint: disable=import-error
 import cupyx    # pylint: disable=import-error
 
-from . import _holstein_kernels as holke
+from ._kernels import _holstein_kernels as holke
 from ..aux import cupy_search
 from ..aux.helpers import cartesian_product, obs_attrs, debug_lister
 from ..config import INIT_VERBOSITY_LEVEL, SEARCHSORTED_TIMING_LEVEL, devices
@@ -20,30 +20,42 @@ from ..core.time_evolution import TimeEvolutionFramework
 ####################################################################################################
 
 class Hamiltonian(HamiltonianFramework):
-    """Concretized Hamiltonian class for the 1D single-exciton Holstein model."""
-    def __init__(self, nchain, max_ho_dims, **kwargs):
+    """Concretized Hamiltonian class for the single-exciton Holstein model."""
+    def __init__(self, nchain, max_ho_dims, geo_dim=1, **kwargs):
         """
         Initialize the Hamiltonian.
 
         Args:
-            nchain (uint): Number of sites in the chain. This is distinct from n_sites,
+            nchain (uint): Number of sites in the entire lattice. This is distinct from n_sites,
                 as the first "site" is actually used to store the position of the exciton
                 and all subsequent "sites" contain the Fock state of the QHOs.
             max_ho_dims (iterable of uints): maximum dimension of QHO at each site.
+                This must be commensurate with nchain.
+            geo_dim (uint): Geometric dimension of the Holstein lattice
+                (1 is a chain, 2 is a square, 3 is a cube, etc.).
+                This determines the neighbors for the excitonic nearest-neigbor coupling.
+                Note that nchain must be compatible with geo_dim (e.g., if geo_dim is 2,
+                then nchain must be a square number). Default: 1 (a 1D chain).
 
         See HamiltonianFramework for other args (with the exception of max_dims).
         """
         self.nchain = nchain
         if nchain != len(max_ho_dims):
             raise ValueError("nchain should match the number of QHOs.")
-        max_dims    = numpy.empty(len(max_ho_dims)+1)
-        max_dims[0] = self.nchain
-        max_dims[1:]= max_ho_dims
+        max_dims        = numpy.empty(len(max_ho_dims)+1)
+        max_dims[0]     = self.nchain
+        max_dims[1:]    = max_ho_dims
+        self.geo_dim    = geo_dim
+        self.lattice_l  = int(numpy.round(nchain**(1/geo_dim)))
+        if self.lattice_l**geo_dim != nchain:
+            raise ValueError(f"Number of sites {nchain} is incompatible with dimension {geo_dim}.")
+
         super().__init__(max_dims=max_dims, **kwargs)
 
         # The following two are used for logging and must be run after super().__init__:
         self.input_args["nchain"]       = nchain
         self.input_args["max_ho_dims"]  = max_ho_dims
+        self.input_args["geo_dim"]      = geo_dim
 
         self.posbitwidth    = int(self.use_module.ceil(self.use_module.log2(self.nchain)))
         with devices.vector_dev:
@@ -152,13 +164,12 @@ class Hamiltonian(HamiltonianFramework):
                 the matrix elements themselves. This changes the return signature. Default: False.
 
         Returns:
-            If `raw_map_to`, then a tuple `(plus_inds, minus_inds)`,
+            If `raw_map_to`, then a list `[plus_inds, minus_inds]`,
             which are both compressed arrays representing the basis states that are mapped to.
 
-            If not `raw_map_to`, then a tuple `((plus_meltriple, minus_meltriple), debug_info)`,
-            where the first two are both `MelTriple`s representing right and left hopping.
+            If not `raw_map_to`, then a tuple `[plus_meltriple, minus_meltriple]`,
+            which are `MelTriple`s representing right and left hopping.
             Here, terms that would cause duplication from the hermitian conj. have been removed.
-            `debug_info` is always `None`.
         """
         if order < 1 or order > self.nchain:
             raise ValueError("Invalid value for order of hopping operator.")
@@ -181,7 +192,7 @@ class Hamiltonian(HamiltonianFramework):
             minus_mask = excpos > order - 1
 
         if raw_map_to:
-            return plus_inds[plus_mask], minus_inds[minus_mask]
+            return [plus_inds[plus_mask], minus_inds[minus_mask]]
 
         # add a mask to remove values that occur in both the input and plus_inds:
         minus_mask  &= self._generate_o_star_mask(basis_states, plus_inds)
@@ -189,12 +200,26 @@ class Hamiltonian(HamiltonianFramework):
         # generate the values of the matrix elements:
         minus_meltriple = MelTriple(minus_inds[minus_mask], t_sys.conjugate(), minus_mask)
         plus_meltriple  = MelTriple(plus_inds[plus_mask], t_sys, plus_mask)
-        return (plus_meltriple, minus_meltriple), None
+        return [plus_meltriple, minus_meltriple]
+
+
+    def _hopping_dim_wrapper(self, basis_states, t_sys, order, raw_map_to):
+        """A simple wrapper to allow for higher-dimensional hopping on a grid."""
+        res = self._generate_mel_hopping(basis_states, t_sys, order=order, raw_map_to=raw_map_to)
+        for d in range(1, self.geo_dim):
+            res += self._generate_mel_hopping(
+                                    basis_states,
+                                    t_sys,
+                                    order=order * self.lattice_l**d,
+                                    raw_map_to=raw_map_to)
+        if raw_map_to:
+            return res
+        return res, None
 
 
     def generate_mel_hopping(self, basis_states, raw_map_to=False):
         """Generate first-order (nearest-neighbor) hopping matrix elements."""
-        return self._generate_mel_hopping(
+        return self._hopping_dim_wrapper(
                                     basis_states,
                                     self.use_terms["hopping"]["J"],
                                     order=1,
@@ -203,7 +228,7 @@ class Hamiltonian(HamiltonianFramework):
 
     def generate_mel_hopping2(self, basis_states, raw_map_to=False):
         """Generate second-order (next-to-nearest-neighbor) hopping matrix elements."""
-        return self._generate_mel_hopping(
+        return self._hopping_dim_wrapper(
                                     basis_states,
                                     self.use_terms["hopping2"]["J2"],
                                     order=2,

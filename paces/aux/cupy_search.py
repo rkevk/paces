@@ -39,7 +39,7 @@ def calc_partition_lens(partition_by, uniquevals):
         raise ValueError("More unique values were found in partition_by than in uniquevals.")
     # One could add another check confirming that
     # cupy.all(cupy.isin(partition_by[diff_inds], uniquevals)) here
-    if len(partition_by) < 2**32:
+    if len(partition_by) < 4294967296:
         lens    = cupy.empty(len(diff_inds), dtype=cupy.uint32)
     else:
         lens    = cupy.uint64
@@ -64,7 +64,7 @@ def find_changes_local_single(arr, mindiff=0):
         raise ValueError("Function called on an array that is smaller than the specified mindiff.")
     if arr.ndim != 1:
         raise ValueError("This function only takes 1D arrays as input.")
-    dtype       = numpy.uint32 if len(arr) < 2**32 else numpy.uint64
+    dtype       = numpy.uint32 if len(arr) < 4294967296 else numpy.uint64
 
     mask        = cupy.empty(arr.shape[0], dtype=bool)
     mask[0]     = True
@@ -99,7 +99,7 @@ class searchsorted_multidim_list_old:
     def __init__(self, phonebook, findme, mindiff, allow_escapes, linear_only, shutup):
         if phonebook.dtype.kind == 'c' or findme.dtype.kind == 'c':
             raise ValueError("Why are you trying to search in complex-valued arrays?")
-        if phonebook.shape[0] >= 2**32-1 or phonebook.shape[1] >= 2**16:
+        if phonebook.shape[0] >= 4294967296 - 1 or phonebook.shape[1] >= 65536:
             raise NotImplementedError("This function will not work with arrays whose dimensions"
                                             " exceed (2**32 - 2, 2**16 - 1).")
         if phonebook.dtype != findme.dtype:
@@ -454,7 +454,7 @@ def _verify_binary_input(phonebook, findme):
     if phonebook.dtype != cupy.uint32:
         raise NotImplementedError(f"dtypes {phonebook.dtype}, {findme.dtype} for phonebook"
                                         "and findme not supported.")
-    if phonebook.shape[0] >= 2**32-1 or phonebook.shape[1] >= 2**16:
+    if phonebook.shape[0] >= 4294967296 - 1 or phonebook.shape[1] >= 65536:
         raise NotImplementedError("This function will not work with arrays whose dimensions exceed"
                                     " (2**32 - 2, 2**16 - 1).")
     if phonebook.shape[1] != findme.shape[1]:

@@ -148,7 +148,7 @@ class Hamiltonian(HamiltonianFramework):
 
     ############################################################################################
 
-    def _generate_mel_hopping(self, basis_states, t_sys, order=1, raw_map_to=False):
+    def _generate_mel_hopping(self, basis_states, t_sys, base_order=1, cur_dim=0, raw_map_to=False):
         """
         Generate n-th order hopping matrix elements.
 
@@ -157,8 +157,11 @@ class Hamiltonian(HamiltonianFramework):
         Args:
             basis_states (compressed 1D arr): array of basis states whose mel's will be calculated.
             t_sys (complex): hopping coupling constant.
-            order (uint): order of hopping. 1 corresponds to nearest-neighbor,
-                2 is next-to-nearest-neighbor, etc. Default: 1.
+            base_order (uint): order of hopping. 1 corresponds to nearest-neighbor,
+                2 is next-to-nearest-neighbor, etc. If cur_dim is not 0, then this is automatically
+                modified to obtain the corresponding higher-dimensional hopping order. Default: 1.
+            cur_dim (uint): The index of the geometric dimension that the function will act on.
+                0 corresponds to the lowest dimension, 1 is the next, etc. Default: 0.
             raw_map_to: If True, do not mask duplicate indices from the complex conjugate.
                 True should be used when enlarging the Hilbert space, but not when computing
                 the matrix elements themselves. This changes the return signature. Default: False.
@@ -171,17 +174,18 @@ class Hamiltonian(HamiltonianFramework):
             which are `MelTriple`s representing right and left hopping.
             Here, terms that would cause duplication from the hermitian conj. have been removed.
         """
-        if order < 1 or order > self.nchain:
-            raise ValueError("Invalid value for order of hopping operator.")
-        excpos  = self.get_pos(basis_states)
+        if base_order < 1 or base_order > self.lattice_l - 1:
+            raise ValueError("Invalid value for base_order of hopping operator.")
+        excpos_mod  = self.get_pos(basis_states) % (self.lattice_l**(cur_dim + 1))
+        order       = base_order * self.lattice_l**cur_dim
 
         # generate the plus side of the hopping (= to the right):
-        plus_inds = basis_states.copy()
-        self.add_n_to_pos(plus_inds, order)
         if self.periodic:
             raise NotImplementedError("Periodic hopping not yet implemented.")
         else:         ### for OBC, remove boundary excursions:
-            plus_mask = excpos < self.nchain - order
+            plus_mask = excpos_mod < ( self.lattice_l**(cur_dim + 1) - order )
+        plus_inds = basis_states[plus_mask]
+        self.add_n_to_pos(plus_inds, order)
 
         # generate the minus side of the coupling (= to the left):
         minus_inds = basis_states.copy()
@@ -189,28 +193,29 @@ class Hamiltonian(HamiltonianFramework):
         if self.periodic:
             raise NotImplementedError("Periodic hopping not yet implemented.")
         else:         ### for OBC, remove boundary excursions:
-            minus_mask = excpos > order - 1
+            minus_mask = excpos_mod > order - 1
 
         if raw_map_to:
-            return [plus_inds[plus_mask], minus_inds[minus_mask]]
+            return [plus_inds, minus_inds[minus_mask]]
 
         # add a mask to remove values that occur in both the input and plus_inds:
         minus_mask  &= self._generate_o_star_mask(basis_states, plus_inds)
 
         # generate the values of the matrix elements:
         minus_meltriple = MelTriple(minus_inds[minus_mask], t_sys.conjugate(), minus_mask)
-        plus_meltriple  = MelTriple(plus_inds[plus_mask], t_sys, plus_mask)
+        plus_meltriple  = MelTriple(plus_inds, t_sys, plus_mask)
         return [plus_meltriple, minus_meltriple]
 
 
     def _hopping_dim_wrapper(self, basis_states, t_sys, order, raw_map_to):
         """A simple wrapper to allow for higher-dimensional hopping on a grid."""
-        res = self._generate_mel_hopping(basis_states, t_sys, order=order, raw_map_to=raw_map_to)
+        res = self._generate_mel_hopping(basis_states, t_sys, order, raw_map_to=raw_map_to)
         for d in range(1, self.geo_dim):
             res += self._generate_mel_hopping(
                                     basis_states,
                                     t_sys,
-                                    order=order * self.lattice_l**d,
+                                    base_order=order,
+                                    cur_dim=d,
                                     raw_map_to=raw_map_to)
         if raw_map_to:
             return res
@@ -246,10 +251,9 @@ class Hamiltonian(HamiltonianFramework):
         excpos          = self.get_pos(basis_states)
 
         # generate the plus side of the coupling:
-        plus_inds       = basis_states.copy()
+        plus_mask       = phonon_occs < (max_ho_dims[excpos] - 1) # mask for ceiling hits
+        plus_inds       = basis_states[plus_mask]
         self.add_phonon_at_exc(plus_inds)
-        # add mask for ceiling hits:
-        plus_mask       = phonon_occs < max_ho_dims[excpos] - 1
 
         # generate the minus side of the coupling:
         minus_inds      = basis_states.copy()
@@ -257,7 +261,7 @@ class Hamiltonian(HamiltonianFramework):
         minus_mask      = phonon_occs > 0
 
         if raw_map_to:
-            return plus_inds[plus_mask], minus_inds[minus_mask]
+            return plus_inds, minus_inds[minus_mask]
 
         ceiling_hits    = (len(basis_states) - plus_mask.sum())
         # add a mask to remove values that occur in both the input and plus_inds:
@@ -269,7 +273,7 @@ class Hamiltonian(HamiltonianFramework):
         minus_vals  = self.use_module.sqrt(phonon_occs[minus_mask], dtype=cupy.float64)
         minus_vals  *= self.use_terms["vib_coupling"]["g"].conjugate()
 
-        return (MelTriple(plus_inds[plus_mask], plus_vals, plus_mask),
+        return (MelTriple(plus_inds, plus_vals, plus_mask),
                 MelTriple(minus_inds[minus_mask], minus_vals, minus_mask)), [ceiling_hits]
 
 
@@ -474,7 +478,7 @@ class TimeEvolution(TimeEvolutionFramework):
         Create a non-uniform basis with a varying number of phonon states per site.
 
         Args:
-            truncate_d_list (list of uints): Number of basis states at given phonon site.
+            truncate_d_list (list of uints): Phonon dimension per site.
             lowest_d_list (None or list of uints): Lowest basis state to construct.
                 The highest n at each site is then lowest_d + truncate_d.
                 None corresponds to 0 everywhere. Default: None.

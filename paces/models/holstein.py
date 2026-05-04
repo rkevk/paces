@@ -363,6 +363,19 @@ class Observables(ObservablesFramework):
         allvals     = vector.conj() * self.teobj.sparse_mats_dict["coupling"].dot(vector)
         return self._calculate_partitioned_sum(allvals)
 
+    @obs_attrs(fname="mu_to_0", header=r"<mu(t) mu(0)>")
+    def calculate_mu_to_0(self, vector):
+        """Compute <mu(t) mu(0)> assuming the initial state was the global vacuum state."""
+        if self.hamobj.posbitwidth > self.hamobj.wordsize:
+            raise NotImplementedError("posbitwidth exceeds the current maximum for this function.")
+
+        mask    = cupy.all(self.teobj.whoami[:,1:] == 0, axis=1)
+
+        if self.hamobj.posbitwidth < self.hamobj.wordsize:
+            mask &= (self.teobj.whoami[:,0] << self.hamobj.posbitwidth) == 0
+
+        return (vector[mask]).sum()
+
 
     def _calculate_partitioned_sum(self, sumvals, part_constant=5):
         """

@@ -17,8 +17,14 @@ class DeviceConfig:
         self.mempool    = None  # will be a cupy/CUDA memory pool object
         self.split      = False # convenience flag equivalent to self.whoami_dev != self.vector_dev
 
+        self.desc_str   = ""    # string that will be printed to log
+
         # Flag to check if configuration was ever set:
         self.configure_called = False
+
+    def _print_and_save(self, s):
+        print(s)
+        self.desc_str += s + "\n"
 
     def configure(self, whoami_device_id=0, vector_device_id=0, unified_memory_bytes=None):
         """
@@ -39,25 +45,27 @@ class DeviceConfig:
                 Setting this to None disables unified memory entirely. Default: None.
         """
         print("######### CUDA device setup: #########")
+        self.desc_str += ("### CUDA device setup:\n")
 
         self.whoami_dev = cupy.cuda.Device(whoami_device_id)
         self.vector_dev = cupy.cuda.Device(vector_device_id)
 
         if self.vector_dev == self.whoami_dev:
-            print("    Using one GPU.")
+            self._print_and_save("    Using one GPU.")
         else:
             self.split = True
-            print("    Using two GPUs.")
+            self._print_and_save("    Using two GPUs.")
 
         if unified_memory_bytes is not None:
             self.mempool = cupy.cuda.MemoryPool(cupy.cuda.memory.malloc_managed) # get unified pool
             cupy.cuda.set_allocator(self.mempool.malloc) # set unified pool as default allocator
             self.mempool.set_limit(size=unified_memory_bytes)
-            print("    Using unified (hybrid CPU/GPU) memory pool with limit set to"
+            self._print_and_save("    Using unified (hybrid CPU/GPU) memory pool with limit set to"
                         f" {unified_memory_bytes/1024**3} GiB.")
         else:
             self.mempool = cupy.get_default_memory_pool()
-            print("    Using default (GPU-based) memory pool.")
+            self._print_and_save("    Using default (GPU-based) memory pool.")
 
         self.configure_called = True
         print("#########    end of setup    #########\n")
+        self.desc_str += "\n"

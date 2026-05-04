@@ -210,6 +210,9 @@ class TimeEvolutionFramework:
             pf.write(hashes)
             pf.write(ver_string + "\n")
             pf.write(hashes + "\n")
+
+            pf.write(devices.desc_str)
+
             pf.write("### Hilbert space constructed from"
                         f" {self.hamobj.__class__.__module__}.{self.hamobj.__class__.__name__}"
                         " with the following parameters:\n")

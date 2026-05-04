@@ -290,10 +290,10 @@ class TimeEvolutionFramework:
         whoami              = self.whoami
         n                   = 0
         while len(whoami) <= self.te_params.maxstates * fillfac:
-            previous_whoami = whoami
-            n               += 1
-            if n > n_max:
+            if n >= n_max:
                 break
+            n               += 1
+            previous_whoami = whoami
             whoami          = self.hamobj.enlarge_basis_set(previous_whoami)
 
         # use previous_whoami, since the last was the one that triggered the break condition
@@ -821,6 +821,10 @@ class TimeEvolutionFramework:
             lastind         = cupy.searchsorted(sorted_vector, decision_val, "right")
             if self.debug_verb > HILBERT_SPACE_DETAILED_LEVEL:
                 print(f"           Number of states to be shuffled: {lastind - firstind}")
+            if (lastind - firstind) > 0.9 * len(vector):
+                raise ValueError("This operation would shuffle"
+                                    f" {(lastind-firstind)*100/len(vector)}%"
+                                    " of all states, which is not advisable.")
             indfromback         = len(vector) - lastind
             if indfromback > ms:
                 raise ValueError("A catastrophic error occurred while"

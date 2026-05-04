@@ -46,13 +46,13 @@ class DeviceConfig:
         if self.vector_dev == self.whoami_dev:
             print("    Using one GPU.")
         else:
+            self.split = True
             print("    Using two GPUs.")
 
         if unified_memory_bytes is not None:
             self.mempool = cupy.cuda.MemoryPool(cupy.cuda.memory.malloc_managed) # get unified pool
             cupy.cuda.set_allocator(self.mempool.malloc) # set unified pool as default allocator
             self.mempool.set_limit(size=unified_memory_bytes)
-            self.split = True
             print("    Using unified (hybrid CPU/GPU) memory pool with limit set to"
                         f" {unified_memory_bytes/1024**3} GiB.")
         else:

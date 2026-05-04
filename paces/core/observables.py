@@ -113,11 +113,11 @@ class ObservablesFramework:
             result  = self.obs_dict[obsname](vector)
             if self.teobj.debug_verb > OBSERVABLES_LEVEL:
                 print(f"      {log_index}.{i+1}a: Calculated {obsname}.")
-            s_data  = numpy.append([t, norm], result)
             fname   = self.fname_dict[obsname]
             for part in ["real", "imag"]:
                 with open(".".join([fname, part]), "a", encoding="utf-8") as f:
-                    numpy.savetxt(f, getattr(s_data, part), newline=" ")
+                    s_data  = numpy.append([t, norm], getattr(result, part))
+                    numpy.savetxt(f, s_data, newline=" ")
                     f.write("\n")
             if self.teobj.debug_verb > OBSERVABLES_LEVEL:
                 print(f"      {log_index}.{i+1}b: Saved {obsname} to file.")

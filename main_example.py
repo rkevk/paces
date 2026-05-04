@@ -15,7 +15,7 @@ if os.path.dirname(sys.argv[0]) != '':
 
 
 ####################################################################################################
-# "Master" settings
+# General config settings
 ####################################################################################################
 
 # configure device and memory settings; the defaults will select a single GPU for everything:
@@ -62,7 +62,7 @@ term_param_dict = {
 # Initial state position:
 initpos = nchain//2
 # Proportion of maxstates to occupy with the initial basis set:
-fillfac = 0.3
+fillfac = 0.1
 
 ###############################
 # list of observables to compute:

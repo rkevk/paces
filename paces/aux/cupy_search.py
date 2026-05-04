@@ -4,12 +4,14 @@
 
 import time
 
-from dataclasses import dataclass
-
 import numpy
 import cupy     # pylint: disable=import-error
 
 ####################################################################################################
+
+#######################################
+# public helper functions
+#######################################
 
 def calc_partition_lens(partition_by, uniquevals):
     """
@@ -73,16 +75,29 @@ def find_changes_local_single(arr, mindiff=0):
 
 ####################################################################################################
 
-def searchsorted_multidim_list_vanilla(phonebook, findme, mindiff=32, allow_escapes=False,
-                                                                linear_only=False, shutup=True):
-    return searchsorted_multidim_list_old(phonebook, findme, mindiff, allow_escapes,
-                                                                linear_only, shutup).directcalc()
+def searchsorted_full_binary(phonebook, findme, allow_escapes=False):
+    _verify_binary_input(phonebook, findme)
+    trivres     = _check_if_trivial(phonebook, findme, allow_escapes)
+    if not trivres is None:
+        return trivres
 
-def searchsorted_multidim_list_8bits(phonebook, findme, mindiff=32, allow_escapes=False,
-                                                                linear_only=False, shutup=True):
-    return searchsorted_multidim_list_old(phonebook, findme, mindiff, allow_escapes,
-                                                                linear_only, shutup).parseto8bits()
+    funcargs    = _binary_prepare_args(findme, phonebook)
 
+    suffix      = ""
+    if not allow_escapes:
+        suffix += "_noesc"
+    if numpy.prod(phonebook.shape) > 4294967296 or numpy.prod(findme.shape) > 4294967296:
+        suffix += "_64"
+
+    globals()["_searchkernel_full_binary" + suffix](*funcargs)
+    return funcargs[-1][-1]
+
+
+####################################################################################################
+
+#######################################
+# private helper functions
+#######################################
 
 def _check_if_trivial(phonebook, findme, allow_escapes):
     if findme.shape[0]      == 0:
@@ -94,6 +109,163 @@ def _check_if_trivial(phonebook, findme, allow_escapes):
         return result
 
     return None
+
+def _verify_binary_input(phonebook, findme):
+    if not (phonebook.flags["C_CONTIGUOUS"] and findme.flags["C_CONTIGUOUS"]):
+        raise ValueError("The modified search routine only works with C-contiguous"
+                            " basis_states arrays (consider calling cupy.ascontiguousarray()"
+                            " on the input arrays first).")
+    if phonebook.dtype != findme.dtype:
+        raise TypeError(f"Mismatched dtypes: phonebook has dtype {phonebook.dtype} and"
+                            " findme has dtype {findme.dtype}.")
+    if phonebook.dtype != cupy.uint32:
+        raise NotImplementedError(f"dtypes {phonebook.dtype}, {findme.dtype} for phonebook"
+                                        "and findme not supported.")
+    if any(x >= 4294967296 - 1 for x in findme.shape):
+        raise IndexError("No dimension of findme may exceed 2^32 - 2.")
+    if any(x >= 2147483648 for x in phonebook.shape):
+        raise IndexError("No dimension of phonebook may exceed 2^31 - 1.")
+    if phonebook.shape[1] != findme.shape[1]:
+        raise ValueError("Incompatible array shapes.")
+
+
+def _binary_prepare_args(findme, phonebook):
+    result  = cupy.zeros(findme.shape[0], dtype=cupy.uint32)
+    threads_per_block   = 256
+    blocks              = numpy.ceil(findme.shape[0]/threads_per_block).astype(int)
+    funcargs            = [(blocks,),
+                            (threads_per_block,),
+                            (findme, phonebook, cupy.uint32(phonebook.shape[0]),
+                            *[cupy.uint32(i) for i in findme.shape],
+                            result)]
+    return funcargs
+
+##########################################################################################
+
+#############################################
+# CUDA code of full-binary search
+#############################################
+
+full_binary_raw = r'''
+    extern "C" __global__
+    void METHODNAME(const unsigned int* findme,
+                    const unsigned int* phonebook,
+                    const unsigned int phonebooknum,
+                    const unsigned int findmenum,
+                    const unsigned int rowlen,
+                          unsigned int* result)
+    {
+        unsigned int tid = blockDim.x * blockIdx.x + threadIdx.x;
+        if (tid < findmenum) {
+            unsigned int left   = 0;
+            unsigned int right  = phonebooknum;
+
+            unsigned int m;
+            unsigned int col;
+
+            INDEXTYPE arrind;
+            INDEXTYPE p_arrind;
+
+            while (left < right) {
+                m           = (left + right) >> 1u;
+                arrind      = tid * rowlen;
+                p_arrind    = m * rowlen;
+
+                // Do a multi-word comparison between phonebook[m] and findme:
+                for (col = 0; col < rowlen; ++col) {
+                    if (phonebook[p_arrind] > findme[arrind]) {
+                        // use a magic number to indicate that phonebook[m] > findme:
+                        col = rowlen + 1;
+                        break;
+                    }
+                    else if (phonebook[p_arrind] < findme[arrind]) {
+                        break;
+                    }
+                    ++arrind;
+                    ++p_arrind;
+                }
+                /*  if col == rowlen now, then we have an exact match;
+                    if col < rowlen, then phonebook[m] < findme;
+                    if col > rowlen, then phonebook[m] > findme; */
+
+                if (col < rowlen) {
+                    left    = m + 1;
+                }
+                else {
+                    right   = m;
+                }
+            }
+            ASSERT_VALUE_SNIPPET
+            result[tid] = left;
+        }
+    }
+    '''
+
+
+full_binary_assert = r'''
+            arrind      = tid * rowlen;
+            p_arrind    = left * rowlen;
+
+            if (left == phonebooknum) {
+                printf("Error! Reached end of array. First element in row was %u.\n",
+                        findme[arrind]);
+                assert(0);
+            }
+            else if (left > phonebooknum) {
+                printf("Catastrophic error encountered! First element in row was %u.\n",
+                        findme[arrind]);
+                assert(0);
+            }
+            for (col = 0; col < rowlen; ++col) {
+                if (phonebook[p_arrind] != findme[arrind]) {
+                    printf("Error! Expected %u in row %u, col %u, but found %u.\n",
+                                findme[arrind], left, col, phonebook[p_arrind]);
+                    assert(0);
+                }
+                ++arrind;
+                ++p_arrind;
+            }
+    '''
+
+
+fbne32 = "full_binary_noesc"
+_searchkernel_full_binary_noesc = cupy.RawKernel(
+                                full_binary_raw.replace("METHODNAME", fbne32).replace(
+                                        "ASSERT_VALUE_SNIPPET", full_binary_assert).replace(
+                                        "INDEXTYPE", "unsigned int"), fbne32)
+
+fbne64 = "full_binary_noesc_64"
+_searchkernel_full_binary_noesc_64 = cupy.RawKernel(
+                                full_binary_raw.replace("METHODNAME", fbne64).replace(
+                                        "ASSERT_VALUE_SNIPPET", full_binary_assert).replace(
+                                        "INDEXTYPE", "unsigned long long"), fbne64)
+
+fb32    = "full_binary"
+_searchkernel_full_binary = cupy.RawKernel(
+                                full_binary_raw.replace("METHODNAME", fb32).replace(
+                                        "ASSERT_VALUE_SNIPPET", '').replace(
+                                        "INDEXTYPE", "unsigned int"), fb32)
+
+fb64    = "full_binary_64"
+_searchkernel_full_binary_64 = cupy.RawKernel(
+                                full_binary_raw.replace("METHODNAME", fb64).replace(
+                                        "ASSERT_VALUE_SNIPPET", '').replace(
+                                        "INDEXTYPE", "unsigned long long"), fb64)
+
+
+####################################################################################################
+####################################################################################################
+# everything from here on is old and may be deprecated soon
+
+def searchsorted_multidim_list_vanilla(phonebook, findme, mindiff=32, allow_escapes=False,
+                                                                linear_only=False, shutup=True):
+    return searchsorted_multidim_list_old(phonebook, findme, mindiff, allow_escapes,
+                                                                linear_only, shutup).directcalc()
+
+def searchsorted_multidim_list_8bits(phonebook, findme, mindiff=32, allow_escapes=False,
+                                                                linear_only=False, shutup=True):
+    return searchsorted_multidim_list_old(phonebook, findme, mindiff, allow_escapes,
+                                                                linear_only, shutup).parseto8bits()
 
 class searchsorted_multidim_list_old:
     def __init__(self, phonebook, findme, mindiff, allow_escapes, linear_only, shutup):
@@ -119,7 +291,7 @@ class searchsorted_multidim_list_old:
         self.shutup     = shutup
 
         #############################################
-        # will be set later by functions:
+        # these will be set later by methods:
         #############################################
         self.skib = ''
         self.skil = ''
@@ -173,7 +345,6 @@ class searchsorted_multidim_list_old:
             result_inds = self._single_loop(result_inds, thisbook, thisfind)
         return result_inds
 
-##########################################################################################
 
     def _preprocess(self):
         if self.phonebook.shape[0] <= self.mindiff:
@@ -254,7 +425,7 @@ class searchsorted_multidim_list_old:
 skil_code   = r'''
     if (startfrom[i] == 4294967295) {
         y = 4294967295;
-        return;        
+        return;
     }
     unsigned int   res_ind = startfrom[i];
 
@@ -287,7 +458,6 @@ skil_code   = r'''
     y = res_ind;
     '''
 
-##########################################################################################
 
 skil_improved_code  = r'''
     if (startfrom[i] == 4294967295) {
@@ -337,7 +507,6 @@ skil_improved_code  = r'''
     y = res_ind;
     '''
 
-##########################################################################################
 
 skib_code   = r'''
     if (startfrom[i] == 4294967295) {
@@ -397,6 +566,7 @@ skib_code   = r'''
     '''
 
 ##########################################################################################
+# kernels:
 
 _searchkernel_individual_linear8 = cupy.ElementwiseKernel(
     'uint8 findme, raw uint8 phonebook, raw uint32 startfrom,'
@@ -441,364 +611,3 @@ _searchkernel_individual_binary32 = cupy.ElementwiseKernel(
     name="searchkernel_individual_binary32")
 
 
-####################################################################################################
-
-def _verify_binary_input(phonebook, findme):
-    if not (phonebook.flags["C_CONTIGUOUS"] and findme.flags["C_CONTIGUOUS"]):
-        raise ValueError("The modified search routine only works with C-contiguous"
-                            " basis_states arrays (consider calling cupy.ascontiguousarray()"
-                            " on the input arrays first).")
-    if phonebook.dtype != findme.dtype:
-        raise TypeError(f"Mismatched dtypes: phonebook has dtype {phonebook.dtype} and"
-                            " findme has dtype {findme.dtype}.")
-    if phonebook.dtype != cupy.uint32:
-        raise NotImplementedError(f"dtypes {phonebook.dtype}, {findme.dtype} for phonebook"
-                                        "and findme not supported.")
-    if phonebook.shape[0] >= 4294967296 - 1 or phonebook.shape[1] >= 65536:
-        raise NotImplementedError("This function will not work with arrays whose dimensions exceed"
-                                    " (2**32 - 2, 2**16 - 1).")
-    if phonebook.shape[1] != findme.shape[1]:
-        raise ValueError("Incompatible array shapes.")
-
-
-def _binary_prepare_args(findme, phonebook):
-    result  = cupy.zeros(findme.shape[0], dtype=cupy.uint32)
-    threads_per_block   = 256
-    blocks              = numpy.ceil(findme.shape[0]/threads_per_block).astype(int)
-    funcargs            = [(blocks,),
-                            (threads_per_block,),
-                            (findme, phonebook, cupy.uint32(phonebook.shape[0]),
-                            *[cupy.uint32(i) for i in findme.shape],
-                            result)]
-    return funcargs
-
-
-def searchsorted_binary_only(phonebook, findme, allow_escapes=False, left_check=True):
-    _verify_binary_input(phonebook, findme)
-    trivres     = _check_if_trivial(phonebook, findme, allow_escapes)
-    if not trivres is None:
-        return trivres
-
-    funcargs    = _binary_prepare_args(findme, phonebook)
-
-    if allow_escapes:
-        if left_check:
-            _searchkernel_binary_only_left_check(*funcargs)
-        else:
-            _searchkernel_binary_only(*funcargs)
-    else:
-        if left_check:
-            _searchkernel_binary_only_noesc_left_check(*funcargs)
-        else:
-            _searchkernel_binary_only_noesc(*funcargs)
-    return funcargs[-1][-1]
-
-
-def searchsorted_full_binary(phonebook, findme, allow_escapes=False):
-    _verify_binary_input(phonebook, findme)
-    trivres     = _check_if_trivial(phonebook, findme, allow_escapes)
-    if not trivres is None:
-        return trivres
-
-    funcargs    = _binary_prepare_args(findme, phonebook)
-
-    if allow_escapes:
-        _searchkernel_full_binary(*funcargs)
-    else:
-        _searchkernel_full_binary_noesc(*funcargs)
-    return funcargs[-1][-1]
-
-##########################################################################################
-# class containing all the code needed to construct the RawKernels:
-
-@dataclass
-class _BinaryConstructorCodes:
-    #############################################
-    # base code with left_check
-    #############################################
-    binary_only_raw_check_left = r'''
-        extern "C" __global__
-        void METHODNAME(const unsigned int* findme,
-            const unsigned int* phonebook,
-            const unsigned int phonebooknum,
-            const unsigned int findmenum,
-            const unsigned int rowlen,
-            unsigned int* result)
-        {
-            unsigned int tid = blockDim.x * blockIdx.x + threadIdx.x;
-            if (tid < findmenum) {
-
-                unsigned int arrind = tid*rowlen;
-                unsigned int left   = 0;
-                unsigned int right  = phonebooknum;
-                unsigned int m;
-                unsigned int col = 0;
-                unsigned int prevval;
-
-                while (left < right) {
-                    m     = (left + right) >> 1u;
-                    if (phonebook[m*rowlen + col] < findme[arrind]) {
-                        left    = m + 1;
-                    }
-                    else {
-                        right   = m;
-                    }
-                }
-                if (left >= phonebooknum) {
-                    END_OF_ARRAY_TRIGGER
-                }
-                else if (phonebook[left*rowlen + col] != findme[arrind]) {
-                    NO_MATCH_TRIGGER
-                }
-
-                prevval = phonebook[left*rowlen + col];
-                ++arrind;
-
-                for (col = 1; col < rowlen; ++col) {
-                    while (phonebook[left*rowlen + col] < findme[arrind]) {
-                        ++left;
-                        if (left >= phonebooknum) {
-                            END_OF_ARRAY_TRIGGER
-                        }
-                        else if (phonebook[left*rowlen + col] < phonebook[(left-1)*rowlen + col]) {
-                            OVERRUN_TRIGGER
-                        }
-                        if (phonebook[left*rowlen + col-1] != prevval) {
-                            LEFT_CHECK_TRIGGER
-                        }
-                    }
-                    prevval = phonebook[left*rowlen + col];
-                    ++arrind;
-                }
-                result[tid] = left;
-            }
-        }
-        '''
-
-
-    #############################################
-    # base code without left_check
-    #############################################
-    binary_only_raw = r'''
-        extern "C" __global__
-        void METHODNAME(const unsigned int* findme,
-                        const unsigned int* phonebook,
-                        const unsigned int phonebooknum,
-                        const unsigned int findmenum,
-                        const unsigned int rowlen,
-                        unsigned int* result)
-        {
-            unsigned int tid = blockDim.x * blockIdx.x + threadIdx.x;
-            if (tid < findmenum) {
-
-                unsigned int arrind = tid*rowlen;
-                unsigned int left   = 0;
-                unsigned int right  = phonebooknum;
-                unsigned int m;
-                unsigned int col = 0;
-
-                while (left < right) {
-                    m     = (left + right) >> 1u;
-                    if (phonebook[m*rowlen + col] < findme[arrind]) {
-                        left    = m + 1;
-                    }
-                    else {
-                        right   = m;
-                    }
-                }
-                if (left >= phonebooknum) {
-                    END_OF_ARRAY_TRIGGER
-                }
-                else if (phonebook[left*rowlen + col] != findme[arrind]) {
-                    NO_MATCH_TRIGGER
-                }
-
-                ++arrind;
-
-                for (col = 1; col < rowlen; ++col) {
-                    while (phonebook[left*rowlen + col] < findme[arrind]) {
-                        ++left;
-                        if (left >= phonebooknum) {
-                            END_OF_ARRAY_TRIGGER
-                        }
-                        else if (phonebook[left*rowlen + col] < phonebook[(left-1)*rowlen + col]) {
-                            OVERRUN_TRIGGER
-                        }
-                    }
-                    ++arrind;
-                }
-                result[tid] = left;
-            }
-        }
-        '''
-
-
-    #############################################
-    # base code of full-binary search
-    #############################################
-    full_binary_raw = r'''
-        extern "C" __global__
-        void METHODNAME(const unsigned int* findme,
-                        const unsigned int* phonebook,
-                        const unsigned int phonebooknum,
-                        const unsigned int findmenum,
-                        const unsigned int rowlen,
-                        unsigned int* result)
-        {
-            unsigned int tid = blockDim.x * blockIdx.x + threadIdx.x;
-            if (tid < findmenum) {
-
-                unsigned int arrind = tid*rowlen;
-                unsigned int left   = 0;
-                unsigned int right  = phonebooknum;
-                unsigned int m;
-                unsigned int col;
-
-                while (left < right) {
-                    m     = (left + right) >> 1u;
-
-                    /* Do a multi-word comparison between phonebook[m] and findme: */
-
-                    for (col = 0; col < rowlen; ++col) {
-                        if (phonebook[m*rowlen + col] > findme[arrind + col]) {
-                            /* use a magic number to indicate that phonebook[m] > findme: */
-                            col = rowlen + 1;
-                            break;
-                        }
-                        else if (phonebook[m*rowlen + col] < findme[arrind + col]) {
-                            break;
-                        }
-                    }
-                    /* if col < rowlen now, then phonebook[m] < findme */
-
-
-                    if (col < rowlen) {
-                        left    = m + 1;
-                    }
-                    else {
-                        right   = m;
-                    }
-                }
-                ASSERT_VALUE_SNIPPET
-                result[tid] = left;
-            }
-        }
-        '''
-
-    full_binary_assert = r'''
-                for (col = 0; col < rowlen; ++col) {
-                    if (phonebook[left*rowlen + col] != findme[arrind + col]) {
-                        printf("Error! Value %u not found in array.\n", findme[arrind]);
-                        assert(0);
-                    }
-                }
-        '''
-
-    #############################################
-    # TRIGGER responses without escapes
-    #############################################
-    binary_only_no_escape_EOA = r'''
-                        printf("Error! Reached end of array while searching for %u.\n",
-                                    findme[arrind]);
-                        assert(0);
-        '''
-
-    binary_only_no_escape_NOMATCH = r'''
-                        if (left > 0) {
-                            printf("Error! Went from %u to %u. Searching for: %u.\n",
-                                        phonebook[(left-1)*rowlen + col],
-                                        phonebook[left*rowlen + col],
-                                        findme[arrind]);
-                        } else {
-                            printf("Error! Searching for %u, but smallest entry is %u.\n",
-                                        findme[arrind],
-                                        phonebook[left*rowlen + col]);
-                        }
-                        assert(0);
-        '''
-
-    binary_only_no_escape_OVERRUN = r'''
-                        printf("Error! Went from %u to %u. Searching for: %u.\n",
-                                        phonebook[(left-1)*rowlen + col],
-                                        phonebook[left*rowlen + col],
-                                        findme[arrind]);
-                        assert(0);
-        '''
-
-    binary_only_no_escape_LEFTCHE = r'''
-                        printf("Error! Reached end of local block while searching for %u.\n",
-                                        findme[arrind]);
-                        assert(0);
-        '''
-
-    #############################################
-    # TRIGGER responses with escapes
-    #############################################
-    binary_only_escape_EOA = r'''
-                        result[tid] = 4294967295;
-                        return;
-        '''
-    binary_only_escape_NOMATCH = binary_only_escape_EOA
-    binary_only_escape_OVERRUN = binary_only_escape_EOA
-    binary_only_escape_LEFTCHE = binary_only_escape_EOA
-
-##########################################################################################
-
-def _process_code(con_obj, methname, escapes, left_check):
-    TRIGGERNAMES    = ["END_OF_ARRAY_TRIGGER", "NO_MATCH_TRIGGER", "OVERRUN_TRIGGER"]
-    codenames       = ["EOA", "NOMATCH", "OVERRUN"]
-    if left_check:
-        basecode        = con_obj.binary_only_raw_check_left
-        TRIGGERNAMES    += ["LEFT_CHECK_TRIGGER",]
-        codenames       += ["LEFTCHE",]
-    else:
-        basecode    = con_obj.binary_only_raw
-
-    if escapes:
-        codes       = [getattr(con_obj, f"binary_only_escape_{s}") for s in codenames]
-    else:
-        codes       = [getattr(con_obj, f"binary_only_no_escape_{s}") for s in codenames]
-
-    for NAME, code in zip(TRIGGERNAMES, codes):
-        basecode    = basecode.replace(NAME, code)
-
-    return basecode.replace("METHODNAME", methname)
-
-
-##########################################################################################
-
-constr_obj = _BinaryConstructorCodes()
-
-noescname   = "binary_multibyte_noesc"
-_searchkernel_binary_only_noesc = cupy.RawKernel(
-    _process_code(constr_obj, noescname, escapes=False, left_check=False),
-    noescname)
-
-escname     = "binary_multibyte"
-_searchkernel_binary_only = cupy.RawKernel(
-    _process_code(constr_obj, escname, escapes=True, left_check=False),
-    escname)
-
-noescnameLC = "binary_multibyte_noesc_left_check"
-_searchkernel_binary_only_noesc_left_check = cupy.RawKernel(
-    _process_code(constr_obj, noescnameLC, escapes=False, left_check=True),
-    noescnameLC)
-
-escnameLC   = "binary_multibyte_left_check"
-_searchkernel_binary_only_left_check = cupy.RawKernel(
-    _process_code(constr_obj, escnameLC, escapes=True, left_check=True),
-    escnameLC)
-
-##########################################################################################
-
-noescfullbinname    = "full_binary_noesc"
-_searchkernel_full_binary_noesc = cupy.RawKernel(
-    constr_obj.full_binary_raw.replace("METHODNAME", noescfullbinname).replace(
-                                        "ASSERT_VALUE_SNIPPET", constr_obj.full_binary_assert),
-                                    noescfullbinname)
-
-fullbinname         = "full_binary"
-_searchkernel_full_binary = cupy.RawKernel(
-    constr_obj.full_binary_raw.replace("METHODNAME", fullbinname).replace(
-                                        "ASSERT_VALUE_SNIPPET", ''),
-                                    fullbinname)

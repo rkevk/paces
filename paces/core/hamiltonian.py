@@ -164,7 +164,7 @@ class HamiltonianFramework:
         self.use_terms      = use_terms
         # for convenience, define a dict with the diag terms removed:
         self.offdiag_terms  = {k: self.use_terms[k] for k in self.use_terms if k != "diag"}
-        # dict containing the names of the debug terms belonging to each Hamiltonian component:
+        # list containing the names of the debug terms belonging to each Hamiltonian component:
         self.extra_dbg_list = []
         for term in self.offdiag_terms:
             func = getattr(self, "generate_mel_" + term)
@@ -199,12 +199,6 @@ class HamiltonianFramework:
                             shutup=True)
         if self.dtype == cupy.uint32:
             return cupy_search.searchsorted_full_binary(phonebook, findme, allow_escapes)
-            # Alternative versions of searchsorted that might be useful in the future:
-#            return cupy_search.searchsorted_binary_only(phonebook, findme, allow_escapes,
-#                                                                                   left_check=True)
-#            return cupy_search.searchsorted_multidim_list_8bits(phonebook, findme,
-#                                        mindiff=self.search_mindiff, allow_escapes=allow_escapes,
-#                                        linear_only=False, shutup=True)
         raise TypeError(f"No searchsorted algorithm implemented for dtype {self.dtype}.")
 
 
@@ -395,7 +389,7 @@ class HamiltonianFramework:
                 generate the matrix elements from.
             enlarge_steps (uint): The number of additional matrix elements to incorporate when
                 determining the next Hilbert subspace. Note: enlarge_steps = neighbor_degree - 1.
-            log_ind (int): The number to use for debug printing.
+            log_ind (float): The number to use for debug printing.
 
         Returns:
             A tuple `((diag_vals, new_inds), coo_dict, dbg_dict)`,
@@ -458,7 +452,10 @@ class HamiltonianFramework:
         new_inds = cupy_unique(all_inds)
         # new_inds is "final" now, it will become the whoami of time_evolution.
 
-        if len(new_inds) >= self.max_word_dim:
+        statenum    = len(new_inds)
+        if statenum >= 2147483648: # cupy uses 32-bit *signed* integers to store sparse arrays
+            raise ValueError("The number of states is too large for signed 32-bit-integer indices.")
+        if statenum >= self.max_word_dim:
             raise ValueError("The indexing array is too long to be stored in a"
                                                     f" {self.wordsize}-bit format.")
         if self.debug_verb > HILBERT_SPACE_DETAILED_LEVEL:
@@ -515,14 +512,13 @@ class HamiltonianFramework:
 
             `inds_to` and `inds_from` are two 1D arrays of indices for constructing COO matrices.
         """
-        inds_from   = self.use_module.empty(2 * sum(len_list), dtype=self.dtype)
-        inds_to     = self.use_module.empty_like(inds_from)
+        ind_pairs = self.use_module.empty((2 * sum(len_list), 2), dtype=self.dtype)
 
         try: # this assumes the first dtype is representative of the rest:
             valdtype    = melpack[0].vals.dtype # if the vals *are* stored as arrays
         except AttributeError:
             valdtype    = type(melpack[0].vals)      # if the vals are *not* stored as arrays
-        vals        = self.use_module.empty_like(inds_from, dtype=valdtype)
+        vals        = self.use_module.empty(ind_pairs.shape[0], dtype=valdtype)
 
         start       = 0
         for thislen, meltriple in zip(len_list, melpack, strict=True):
@@ -532,23 +528,23 @@ class HamiltonianFramework:
 
             # Start with the indices being mapped from:
             # Do "normal"/"outward"-mapping terms first ...
-            inds_from[start:midp]   = basis_lookup[meltriple.mask]
+            ind_pairs[start:midp,0] = basis_lookup[meltriple.mask]
             # ... and then the hermitian conjugate:
             t0 = time.time()
-            inds_from[midp:end]     = self.searchsorted(new_inds, meltriple.inds)
+            ind_pairs[midp:end,0]   = self.searchsorted(new_inds, meltriple.inds)
             print_searchsorted_timing(self.debug_verb, time.time() - t0,
                                             new_inds.shape[0], meltriple.inds.shape[0])
 
             # Now the indices being mapped to:
-            inds_to[start:midp]     = inds_from[midp:end]
-            inds_to[midp:end]       = inds_from[start:midp]
+            ind_pairs[start:midp,1] = ind_pairs[midp:end,0]
+            ind_pairs[midp:end,1]   = ind_pairs[start:midp,0]
 
             # Finally, fill in the actual values of the matrix elements:
             vals[start:midp]        = meltriple.vals
             vals[midp:end]          = meltriple.vals.conjugate()
 
             start = end
-        return vals, (inds_to, inds_from)
+        return vals, (ind_pairs[:,1], ind_pairs[:,0])
 
 
     def enlarge_basis_set(self, basis_states):

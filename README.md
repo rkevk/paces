@@ -1,8 +1,7 @@
 # `paces`: Parallelized Application of Co-Evolving Subspaces
 ## A method for computing quantum dynamics on GPUs
-The `main` branch will be updated with new features to support a wider variety of models.
-If you are interested in the single-exciton Holstein version that was used to create the initial data
-shown in the publication `[link to be inserted here]`, please see the [holstein_only](https://github.com/rkevk/paces/tree/holstein_only) branch instead.
+This is the code used to produce the data shown in https://arxiv.org/abs/2603.07341.
+Please cite said reference if you use this code.
 
 For a more detailed description of the API, check the source docstrings or the documentation at
 https://rkevk.github.io/paces, particularly if you are interested in extending the method to new Hamiltonian models.

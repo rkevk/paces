@@ -121,3 +121,43 @@ class ObservablesFramework:
                     f.write("\n")
             if self.teobj.debug_verb > OBSERVABLES_LEVEL:
                 print(f"      {log_index}.{i+1}b: Saved {obsname} to file.")
+
+
+    def calculate_rdm(self, site, vector):
+        """Calculate and return a reduced density matrix at a given site from a given vector."""
+        occs        = self.hamobj.get_n_at_site(self.teobj.whoami, site)
+        uniques     = self.use_module.unique(occs)
+        dim         = int(self.hamobj.max_dims_v[site])
+
+        vecprod = vector * numpy.conj(vector)
+        diag    = self.use_module.zeros(dim, dtype=complex)
+        for val in uniques:
+            diag[val]   = vecprod[occs == val].sum()
+
+        upper_tri   = self.use_module.zeros((dim, dim), dtype=complex)
+
+        for offdiag_idx in range(1, dim):
+            vecprod     = self._offdiag_n(vector, offdiag_idx, site) * numpy.conj(vector)
+            this_res    = self.use_module.zeros(dim - offdiag_idx, dtype=complex)
+            for val in uniques:
+                # we will now generate the entry rho_{val - offdiag_idx, val}
+                if val < offdiag_idx:
+                    continue
+                this_res[val-offdiag_idx] = vecprod[occs == val].sum()
+            upper_tri   += self.use_module.diag(this_res, offdiag_idx)
+
+        reduced_dm  = upper_tri + upper_tri.T.conj() + self.use_module.diag(diag)
+        return reduced_dm
+
+
+    def _offdiag_n(self, vector, n, site):
+        r"""
+        Return the result of applying an n-particle shift (similar to (a^\dag)^n without the sqrt).
+        """
+        plus_inds       = self.teobj.whoami.copy()
+        self.hamobj.add_n_at_site(plus_inds, n, site)
+        inds_to         = self.hamobj.searchsorted(self.teobj.whoami, plus_inds, allow_escapes=True)
+        mask            = self.use_module.all(self.teobj.whoami[inds_to] == plus_inds, axis=1)
+        res             = self.use_module.zeros_like(vector)
+        res[inds_to[mask]]  = vector[mask]
+        return res

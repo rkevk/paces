@@ -11,6 +11,6 @@ There are four submodules:
 """
 
 __all__ = ["aux", "core", "models", "config"]
-__version__ = "1.1.1a"
+__version__ = "1.2.0"
 
 from . import core, config, models

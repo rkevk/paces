@@ -13,8 +13,9 @@ from typing import Optional
 from dataclasses import dataclass
 
 import numpy
-import cupy     # pylint: disable=import-error
-import cupyx    # pylint: disable=import-error
+import cupy         # pylint: disable=import-error
+import cupyx        # pylint: disable=import-error
+import cupyx.scipy.linalg # pylint: disable=import-error
 
 from .. import __version__
 from ..aux import expm_multiply_simple
@@ -56,7 +57,7 @@ class CoeffSaveParams:
 @dataclass
 class ExpmParams:
     """
-    Dataclass containg parameters for the computation of the matrix exponential.
+    Dataclass containing parameters for the computation of the matrix exponential.
 
     Args:
         m_star (int): Maximum order to use in the series expansion of U(δt). Default: 100.
@@ -64,10 +65,21 @@ class ExpmParams:
             after applying U(δt), abort the computation. Default: 2.
         use_scaling (bool): If False, then a simple Taylor series is used to compute U(δt),
             otherwise the more costly scaling-and-squaring method is used. Default: False.
+        renormalize (bool): If True, then the state is renormalized after each application of U(δt).
+            As the norm constitutes useful diagnostic data, this should only ever be used in
+            special testing or debugging cases. Default: False.
+        lanczos_order (int): The Krylov-space dimension + 1 that is used to compute the Lanczos
+            representation of U(δt). If this is 0, then the default series-based exponentiation
+            is used instead. Default: 0.
     """
     m_star: int = 100
     explosion_cutoff: float = 2.0
     use_scaling: bool = False
+    renormalize: bool = False
+    lanczos_order: int = 0
+
+    if lanczos_order and use_scaling:
+        raise ValueError("Scaling and squaring cannot be used in conjunction with Lanczos.")
 
 
 @dataclass
@@ -468,7 +480,7 @@ class TimeEvolutionFramework:
     ############################################################################################
 
     def _simple_taylor(self, delta_t):
-        """Perform time evolution step to current vector without scaling and squaring."""
+        """Perform the time evolution step on the current vector without scaling and squaring."""
         tol = 1.1102230246251565e-16 # this is 2**-53
         converged   = False
         term        = self.vector
@@ -500,6 +512,43 @@ class TimeEvolutionFramework:
         return res
 
 
+    def _lanczos(self, delta_t):
+        """Perform the time evolution step on the current vector using a Lanczos procedure."""
+        m = self.expm_params.lanczos_order
+        small_ham   = self.use_module.zeros((m+1, m+1), dtype=complex)
+        vmat        = self.use_module.zeros((self.numstates, m+1), dtype=complex)
+
+        orig_norm   = self.use_module.linalg.norm(self.vector)
+        normed_vec  = self.vector / orig_norm
+
+        ham_vec     = self.total_ham(normed_vec)
+        diag_val    = self.use_module.vdot(ham_vec, normed_vec)
+        ham_vec     -= diag_val * normed_vec
+
+        small_ham[0,0]  = diag_val
+        vmat[:,0]       = normed_vec
+        for i in range(1, m+1):
+            od_val  = self.use_module.linalg.norm(ham_vec)
+            if od_val < 1e-15:
+                break
+            new_vec     = ham_vec / od_val
+            ham_vec     = self.total_ham(new_vec) - od_val * normed_vec
+            diag_val    = self.use_module.vdot(ham_vec, new_vec)
+            ham_vec     -= diag_val * new_vec
+            normed_vec  = new_vec
+
+            small_ham[i,i]  = diag_val
+            small_ham[i-1,i]= od_val
+            small_ham[i,i-1]= od_val
+            vmat[:,i]       = normed_vec
+        if self.use_module is numpy:
+            leftcol = scipy.linalg.expm(-1j * delta_t * small_ham)[:,0]
+        else:
+            leftcol = cupyx.scipy.linalg.expm(-1j * delta_t * small_ham)[:,0]
+        # expm_dbg doesn't make sense here, but we still have to output something:
+        return orig_norm * (vmat @ leftcol), [False, 0, numpy.array(0), numpy.array(0)]
+
+
     def _evolve_single_step(self, i, t_curr, delta_t, diag_coo_debug):
         """Perform a single time evolution step including computation of expectation values."""
         if self.debug_verb > BASE_STEP_LEVEL:
@@ -525,13 +574,17 @@ class TimeEvolutionFramework:
         #
         # Perform the actual time evolution step:
         #
-        if self.expm_params.use_scaling:  # with scaling and squaring
+        if self.expm_params.lanczos_order > 0:  # Lanczos algorithm for time evolution
+            self.vector, expm_dbg = self._lanczos(delta_t)
+        elif self.expm_params.use_scaling:  # with scaling and squaring
             self.vector, expm_dbg = expm_multiply_simple(1j * self.ham_mat, self.vector,
                                                                 t=delta_t, return_dbg=True)
         else:                               # without scaling and squaring
             self.vector, expm_dbg = self._simple_taylor(delta_t)
 
-        if self.use_module.linalg.norm(self.vector) > self.expm_params.explosion_cutoff:
+        if self.expm_params.renormalize:
+            self.vector /= self.use_module.linalg.norm(self.vector)
+        elif self.use_module.linalg.norm(self.vector) > self.expm_params.explosion_cutoff:
             raise RuntimeError("Norm has exceeded preset explosion cutoff value"
                                         f" ({self.expm_params.explosion_cutoff})!")
         if self.debug_verb > BASE_STEP_LEVEL:

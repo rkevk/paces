@@ -1,0 +1,589 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../../../../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>paces.models.holstein.Hamiltonian &#8212; paces 1.2.0 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../../../../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+<link href="../../../../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=5ecbeea2" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/styles/sphinx-book-theme.css?v=3c74b3bc" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/graphviz.css?v=4ae1632d" />
+  
+  <!-- So that users can add custom icons -->
+  <script src="../../../../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../../../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
+<link rel="preload" as="script" href="../../../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+
+    <script src="../../../../_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'autoapi/paces/models/holstein/Hamiltonian';</script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+    <link rel="next" title="paces.models.holstein.Observables" href="Observables.html" />
+    <link rel="prev" title="paces.models.holstein" href="index.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="" />
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../../../../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../../../../index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">paces 1.2.0 documentation</p>
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <ul class="current nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../aux/index.html">paces.aux</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../aux/cupy_search/index.html">paces.aux.cupy_search</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../aux/helpers/index.html">paces.aux.helpers</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../config/index.html">paces.config</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../config/dbg_verbosity_levels/index.html">paces.config.dbg_verbosity_levels</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../config/DeviceConfig.html">paces.config.DeviceConfig</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../core/index.html">paces.core</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../core/hamiltonian/index.html">paces.core.hamiltonian</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../core/hamiltonian/MelTriple.html">paces.core.hamiltonian.MelTriple</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../core/hamiltonian/HamiltonianFramework.html">paces.core.hamiltonian.HamiltonianFramework</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../core/observables/index.html">paces.core.observables</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../core/observables/ObservablesFramework.html">paces.core.observables.ObservablesFramework</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../core/time_evolution/index.html">paces.core.time_evolution</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../core/time_evolution/CoeffSaveParams.html">paces.core.time_evolution.CoeffSaveParams</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../core/time_evolution/ExpmParams.html">paces.core.time_evolution.ExpmParams</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../core/time_evolution/TimeEvoParams.html">paces.core.time_evolution.TimeEvoParams</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../core/time_evolution/TimeEvolutionFramework.html">paces.core.time_evolution.TimeEvolutionFramework</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+<li class="toctree-l1 current active has-children"><a class="reference internal" href="../index.html">paces.models</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l2 current active has-children"><a class="reference internal" href="index.html">paces.models.holstein</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l3 current active"><a class="current reference internal" href="#">paces.models.holstein.Hamiltonian</a></li>
+<li class="toctree-l3"><a class="reference internal" href="Observables.html">paces.models.holstein.Observables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="TimeEvolution.html">paces.models.holstein.TimeEvolution</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="../../../../_sources/autoapi/paces/models/holstein/Hamiltonian.rst" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.rst</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button pst-navbar-icon"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button>
+
+
+<button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button>
+<button class="sidebar-toggle secondary-toggle btn btn-sm pst-navbar-icon" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</button>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>paces.models.holstein.Hamiltonian</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> Contents </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#paces.models.holstein.Hamiltonian"><code class="docutils literal notranslate"><span class="pre">paces.models.holstein.Hamiltonian</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#paces.models.holstein.Hamiltonian.get_phonon_occ"><code class="docutils literal notranslate"><span class="pre">paces.models.holstein.Hamiltonian.get_phonon_occ()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#paces.models.holstein.Hamiltonian.get_pos"><code class="docutils literal notranslate"><span class="pre">paces.models.holstein.Hamiltonian.get_pos()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#paces.models.holstein.Hamiltonian.get_phonon_at_exc"><code class="docutils literal notranslate"><span class="pre">paces.models.holstein.Hamiltonian.get_phonon_at_exc()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#paces.models.holstein.Hamiltonian.sum_all_phonons"><code class="docutils literal notranslate"><span class="pre">paces.models.holstein.Hamiltonian.sum_all_phonons()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#paces.models.holstein.Hamiltonian.add_n_to_qho"><code class="docutils literal notranslate"><span class="pre">paces.models.holstein.Hamiltonian.add_n_to_qho()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#paces.models.holstein.Hamiltonian.add_n_to_pos"><code class="docutils literal notranslate"><span class="pre">paces.models.holstein.Hamiltonian.add_n_to_pos()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#paces.models.holstein.Hamiltonian.add_phonon_at_exc"><code class="docutils literal notranslate"><span class="pre">paces.models.holstein.Hamiltonian.add_phonon_at_exc()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#paces.models.holstein.Hamiltonian.rem_phonon_at_exc"><code class="docutils literal notranslate"><span class="pre">paces.models.holstein.Hamiltonian.rem_phonon_at_exc()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#paces.models.holstein.Hamiltonian.generate_mel_hopping"><code class="docutils literal notranslate"><span class="pre">paces.models.holstein.Hamiltonian.generate_mel_hopping()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#paces.models.holstein.Hamiltonian.generate_mel_hopping2"><code class="docutils literal notranslate"><span class="pre">paces.models.holstein.Hamiltonian.generate_mel_hopping2()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#paces.models.holstein.Hamiltonian.generate_mel_vib_coupling"><code class="docutils literal notranslate"><span class="pre">paces.models.holstein.Hamiltonian.generate_mel_vib_coupling()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#paces.models.holstein.Hamiltonian.generate_mel_diag"><code class="docutils literal notranslate"><span class="pre">paces.models.holstein.Hamiltonian.generate_mel_diag()</span></code></a></li>
+</ul>
+</li>
+</ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="paces-models-holstein-hamiltonian">
+<h1>paces.models.holstein.Hamiltonian<a class="headerlink" href="#paces-models-holstein-hamiltonian" title="Link to this heading">#</a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="paces.models.holstein.Hamiltonian">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">paces.models.holstein.</span></span><span class="sig-name descname"><span class="pre">Hamiltonian</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">nchain</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_ho_dims</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">geo_dim</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/rkevk/paces/tree/main/paces/models/holstein.py#L22-L287"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#paces.models.holstein.Hamiltonian" title="Link to this definition">#</a></dt>
+<dd><p>Bases: <a class="reference internal" href="../../core/hamiltonian/HamiltonianFramework.html#paces.core.hamiltonian.HamiltonianFramework" title="paces.core.hamiltonian.HamiltonianFramework"><code class="xref py py-obj docutils literal notranslate"><span class="pre">paces.core.hamiltonian.HamiltonianFramework</span></code></a></p>
+<p>Concretized Hamiltonian class for the single-exciton Holstein model.</p>
+<p>Initialize the Hamiltonian.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>nchain</strong> (<em>uint</em>) – Number of sites in the entire lattice. This is distinct from n_sites,
+as the first “site” is actually used to store the position of the exciton
+and all subsequent “sites” contain the Fock state of the QHOs.</p></li>
+<li><p><strong>max_ho_dims</strong> (<em>iterable</em><em> of </em><em>uints</em>) – maximum dimension of QHO at each site.
+This must be commensurate with nchain.</p></li>
+<li><p><strong>geo_dim</strong> (<em>uint</em>) – Geometric dimension of the Holstein lattice
+(1 is a chain, 2 is a square, 3 is a cube, etc.).
+This determines the neighbors for the excitonic nearest-neigbor coupling.
+Note that nchain must be compatible with geo_dim (e.g., if geo_dim is 2,
+then nchain must be a square number). Default: 1 (a 1D chain).</p></li>
+</ul>
+</dd>
+</dl>
+<p>See HamiltonianFramework for other args (with the exception of max_dims).</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="paces.models.holstein.Hamiltonian.get_phonon_occ">
+<span class="sig-name descname"><span class="pre">get_phonon_occ</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">arr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">site</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/rkevk/paces/tree/main/paces/models/holstein.py#L68-L70"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#paces.models.holstein.Hamiltonian.get_phonon_occ" title="Link to this definition">#</a></dt>
+<dd><p>Get the phonon occupation number at a specific QHO site from a compressed 1D array</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="paces.models.holstein.Hamiltonian.get_pos">
+<span class="sig-name descname"><span class="pre">get_pos</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">arr</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/rkevk/paces/tree/main/paces/models/holstein.py#L73-L75"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#paces.models.holstein.Hamiltonian.get_pos" title="Link to this definition">#</a></dt>
+<dd><p>Get the position of the exciton from a compressed 1D array</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="paces.models.holstein.Hamiltonian.get_phonon_at_exc">
+<span class="sig-name descname"><span class="pre">get_phonon_at_exc</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">arr</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/rkevk/paces/tree/main/paces/models/holstein.py#L78-L84"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#paces.models.holstein.Hamiltonian.get_phonon_at_exc" title="Link to this definition">#</a></dt>
+<dd><p>Get the number of phonons at the position of the exciton from a compressed 1D array</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="paces.models.holstein.Hamiltonian.sum_all_phonons">
+<span class="sig-name descname"><span class="pre">sum_all_phonons</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">arr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">omega</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/rkevk/paces/tree/main/paces/models/holstein.py#L86-L102"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#paces.models.holstein.Hamiltonian.sum_all_phonons" title="Link to this definition">#</a></dt>
+<dd><p>Get the total number of phonons (per row) from a compressed 1D array</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="paces.models.holstein.Hamiltonian.add_n_to_qho">
+<span class="sig-name descname"><span class="pre">add_n_to_qho</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">arr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">site</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/rkevk/paces/tree/main/paces/models/holstein.py#L105-L117"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#paces.models.holstein.Hamiltonian.add_n_to_qho" title="Link to this definition">#</a></dt>
+<dd><p>Takes an array arr and adds (or subtracts) n phonons to site n (in-place).</p>
+<p>This method takes care of rollovers between words,
+but is unsafe with regard to over-/underflows due to floor/ceiling hits.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>arr</strong> (<em>ndarray</em>) – The compressed array that will be modified in-place.</p></li>
+<li><p><strong>n</strong> (<em>int</em>) – The number of phonons to add.</p></li>
+<li><p><strong>site</strong> (<em>uint</em>) – The index of the QHO to which the phonons shall be added.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="paces.models.holstein.Hamiltonian.add_n_to_pos">
+<span class="sig-name descname"><span class="pre">add_n_to_pos</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">arr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/rkevk/paces/tree/main/paces/models/holstein.py#L120-L131"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#paces.models.holstein.Hamiltonian.add_n_to_pos" title="Link to this definition">#</a></dt>
+<dd><p>Takes an array arr and moves the exciton/electron by n sites (in-place).</p>
+<p>This method takes care of rollovers between bytes,
+but is unsafe with regard to over-/underflows due to system boundary excursions.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>arr</strong> (<em>ndarray</em>) – The compressed array that will be modified in-place.</p></li>
+<li><p><strong>n</strong> (<em>int</em>) – The number by which the exciton position will be shifted.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="paces.models.holstein.Hamiltonian.add_phonon_at_exc">
+<span class="sig-name descname"><span class="pre">add_phonon_at_exc</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">arr</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/rkevk/paces/tree/main/paces/models/holstein.py#L134-L139"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#paces.models.holstein.Hamiltonian.add_phonon_at_exc" title="Link to this definition">#</a></dt>
+<dd><p>Add one phonon at the position of the exciton to arr (in-place).</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="paces.models.holstein.Hamiltonian.rem_phonon_at_exc">
+<span class="sig-name descname"><span class="pre">rem_phonon_at_exc</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">arr</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/rkevk/paces/tree/main/paces/models/holstein.py#L142-L147"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#paces.models.holstein.Hamiltonian.rem_phonon_at_exc" title="Link to this definition">#</a></dt>
+<dd><p>Remove one phonon at the position of the exciton to arr (in-place).</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="paces.models.holstein.Hamiltonian.generate_mel_hopping">
+<span class="sig-name descname"><span class="pre">generate_mel_hopping</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">basis_states</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">raw_map_to</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/rkevk/paces/tree/main/paces/models/holstein.py#L225-L231"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#paces.models.holstein.Hamiltonian.generate_mel_hopping" title="Link to this definition">#</a></dt>
+<dd><p>Generate first-order (nearest-neighbor) hopping matrix elements.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="paces.models.holstein.Hamiltonian.generate_mel_hopping2">
+<span class="sig-name descname"><span class="pre">generate_mel_hopping2</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">basis_states</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">raw_map_to</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/rkevk/paces/tree/main/paces/models/holstein.py#L234-L240"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#paces.models.holstein.Hamiltonian.generate_mel_hopping2" title="Link to this definition">#</a></dt>
+<dd><p>Generate second-order (next-to-nearest-neighbor) hopping matrix elements.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="paces.models.holstein.Hamiltonian.generate_mel_vib_coupling">
+<span class="sig-name descname"><span class="pre">generate_mel_vib_coupling</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">basis_states</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">raw_map_to</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/rkevk/paces/tree/main/paces/models/holstein.py#L243-L277"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#paces.models.holstein.Hamiltonian.generate_mel_vib_coupling" title="Link to this definition">#</a></dt>
+<dd><p>Generate vibronic-coupling matrix elements.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="paces.models.holstein.Hamiltonian.generate_mel_diag">
+<span class="sig-name descname"><span class="pre">generate_mel_diag</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">basis_states</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/rkevk/paces/tree/main/paces/models/holstein.py#L280-L287"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#paces.models.holstein.Hamiltonian.generate_mel_diag" title="Link to this definition">#</a></dt>
+<dd><p>Generate diagonal values of basis states.</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="index.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">paces.models.holstein</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="Observables.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">paces.models.holstein.Observables</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item"><div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#paces.models.holstein.Hamiltonian"><code class="docutils literal notranslate"><span class="pre">paces.models.holstein.Hamiltonian</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#paces.models.holstein.Hamiltonian.get_phonon_occ"><code class="docutils literal notranslate"><span class="pre">paces.models.holstein.Hamiltonian.get_phonon_occ()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#paces.models.holstein.Hamiltonian.get_pos"><code class="docutils literal notranslate"><span class="pre">paces.models.holstein.Hamiltonian.get_pos()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#paces.models.holstein.Hamiltonian.get_phonon_at_exc"><code class="docutils literal notranslate"><span class="pre">paces.models.holstein.Hamiltonian.get_phonon_at_exc()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#paces.models.holstein.Hamiltonian.sum_all_phonons"><code class="docutils literal notranslate"><span class="pre">paces.models.holstein.Hamiltonian.sum_all_phonons()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#paces.models.holstein.Hamiltonian.add_n_to_qho"><code class="docutils literal notranslate"><span class="pre">paces.models.holstein.Hamiltonian.add_n_to_qho()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#paces.models.holstein.Hamiltonian.add_n_to_pos"><code class="docutils literal notranslate"><span class="pre">paces.models.holstein.Hamiltonian.add_n_to_pos()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#paces.models.holstein.Hamiltonian.add_phonon_at_exc"><code class="docutils literal notranslate"><span class="pre">paces.models.holstein.Hamiltonian.add_phonon_at_exc()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#paces.models.holstein.Hamiltonian.rem_phonon_at_exc"><code class="docutils literal notranslate"><span class="pre">paces.models.holstein.Hamiltonian.rem_phonon_at_exc()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#paces.models.holstein.Hamiltonian.generate_mel_hopping"><code class="docutils literal notranslate"><span class="pre">paces.models.holstein.Hamiltonian.generate_mel_hopping()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#paces.models.holstein.Hamiltonian.generate_mel_hopping2"><code class="docutils literal notranslate"><span class="pre">paces.models.holstein.Hamiltonian.generate_mel_hopping2()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#paces.models.holstein.Hamiltonian.generate_mel_vib_coupling"><code class="docutils literal notranslate"><span class="pre">paces.models.holstein.Hamiltonian.generate_mel_vib_coupling()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#paces.models.holstein.Hamiltonian.generate_mel_diag"><code class="docutils literal notranslate"><span class="pre">paces.models.holstein.Hamiltonian.generate_mel_diag()</span></code></a></li>
+</ul>
+</li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By R. Kevin Kessing
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2026, R. Kevin Kessing.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../../../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
+<script defer src="../../../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>

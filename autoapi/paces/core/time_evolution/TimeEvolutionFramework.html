@@ -1,0 +1,619 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../../../../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>paces.core.time_evolution.TimeEvolutionFramework &#8212; paces 1.2.0 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../../../../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+<link href="../../../../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=5ecbeea2" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/styles/sphinx-book-theme.css?v=3c74b3bc" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/graphviz.css?v=4ae1632d" />
+  
+  <!-- So that users can add custom icons -->
+  <script src="../../../../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../../../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
+<link rel="preload" as="script" href="../../../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+
+    <script src="../../../../_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'autoapi/paces/core/time_evolution/TimeEvolutionFramework';</script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+    <link rel="next" title="paces.models" href="../../models/index.html" />
+    <link rel="prev" title="paces.core.time_evolution.TimeEvoParams" href="TimeEvoParams.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="" />
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../../../../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../../../../index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">paces 1.2.0 documentation</p>
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <ul class="current nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../aux/index.html">paces.aux</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../aux/cupy_search/index.html">paces.aux.cupy_search</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../aux/helpers/index.html">paces.aux.helpers</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../config/index.html">paces.config</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../config/dbg_verbosity_levels/index.html">paces.config.dbg_verbosity_levels</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../config/DeviceConfig.html">paces.config.DeviceConfig</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 current active has-children"><a class="reference internal" href="../index.html">paces.core</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l2 has-children"><a class="reference internal" href="../hamiltonian/index.html">paces.core.hamiltonian</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../hamiltonian/MelTriple.html">paces.core.hamiltonian.MelTriple</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../hamiltonian/HamiltonianFramework.html">paces.core.hamiltonian.HamiltonianFramework</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../observables/index.html">paces.core.observables</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../observables/ObservablesFramework.html">paces.core.observables.ObservablesFramework</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 current active has-children"><a class="reference internal" href="index.html">paces.core.time_evolution</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="CoeffSaveParams.html">paces.core.time_evolution.CoeffSaveParams</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ExpmParams.html">paces.core.time_evolution.ExpmParams</a></li>
+<li class="toctree-l3"><a class="reference internal" href="TimeEvoParams.html">paces.core.time_evolution.TimeEvoParams</a></li>
+<li class="toctree-l3 current active"><a class="current reference internal" href="#">paces.core.time_evolution.TimeEvolutionFramework</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../models/index.html">paces.models</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../models/holstein/index.html">paces.models.holstein</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../models/holstein/Hamiltonian.html">paces.models.holstein.Hamiltonian</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../models/holstein/Observables.html">paces.models.holstein.Observables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../models/holstein/TimeEvolution.html">paces.models.holstein.TimeEvolution</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="../../../../_sources/autoapi/paces/core/time_evolution/TimeEvolutionFramework.rst" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.rst</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button pst-navbar-icon"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button>
+
+
+<button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button>
+<button class="sidebar-toggle secondary-toggle btn btn-sm pst-navbar-icon" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</button>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>paces.core.time_evolution.TimeEvolutionFramework</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> Contents </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#paces.core.time_evolution.TimeEvolutionFramework"><code class="docutils literal notranslate"><span class="pre">paces.core.time_evolution.TimeEvolutionFramework</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#paces.core.time_evolution.TimeEvolutionFramework.initialize_params_file"><code class="docutils literal notranslate"><span class="pre">paces.core.time_evolution.TimeEvolutionFramework.initialize_params_file()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#paces.core.time_evolution.TimeEvolutionFramework.write_current_params_to_file"><code class="docutils literal notranslate"><span class="pre">paces.core.time_evolution.TimeEvolutionFramework.write_current_params_to_file()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#paces.core.time_evolution.TimeEvolutionFramework.load_basis_from_file"><code class="docutils literal notranslate"><span class="pre">paces.core.time_evolution.TimeEvolutionFramework.load_basis_from_file()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#paces.core.time_evolution.TimeEvolutionFramework.grow_optimal_basis"><code class="docutils literal notranslate"><span class="pre">paces.core.time_evolution.TimeEvolutionFramework.grow_optimal_basis()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#paces.core.time_evolution.TimeEvolutionFramework.create_initial_vector"><code class="docutils literal notranslate"><span class="pre">paces.core.time_evolution.TimeEvolutionFramework.create_initial_vector()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#paces.core.time_evolution.TimeEvolutionFramework.create_matrices"><code class="docutils literal notranslate"><span class="pre">paces.core.time_evolution.TimeEvolutionFramework.create_matrices()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#paces.core.time_evolution.TimeEvolutionFramework.create_ham_mat"><code class="docutils literal notranslate"><span class="pre">paces.core.time_evolution.TimeEvolutionFramework.create_ham_mat()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#paces.core.time_evolution.TimeEvolutionFramework.total_ham"><code class="docutils literal notranslate"><span class="pre">paces.core.time_evolution.TimeEvolutionFramework.total_ham()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#paces.core.time_evolution.TimeEvolutionFramework.total_ham_ones"><code class="docutils literal notranslate"><span class="pre">paces.core.time_evolution.TimeEvolutionFramework.total_ham_ones()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#paces.core.time_evolution.TimeEvolutionFramework.generate_timeline"><code class="docutils literal notranslate"><span class="pre">paces.core.time_evolution.TimeEvolutionFramework.generate_timeline()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#paces.core.time_evolution.TimeEvolutionFramework.coherence_weighting_func"><code class="docutils literal notranslate"><span class="pre">paces.core.time_evolution.TimeEvolutionFramework.coherence_weighting_func()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#paces.core.time_evolution.TimeEvolutionFramework.norm_weighting_func"><code class="docutils literal notranslate"><span class="pre">paces.core.time_evolution.TimeEvolutionFramework.norm_weighting_func()</span></code></a></li>
+</ul>
+</li>
+</ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="paces-core-time-evolution-timeevolutionframework">
+<h1>paces.core.time_evolution.TimeEvolutionFramework<a class="headerlink" href="#paces-core-time-evolution-timeevolutionframework" title="Link to this heading">#</a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="paces.core.time_evolution.TimeEvolutionFramework">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">paces.core.time_evolution.</span></span><span class="sig-name descname"><span class="pre">TimeEvolutionFramework</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">hamobj</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ObsObj</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">obs_list</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dirname</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">te_params</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">expm_params</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">params_file</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/rkevk/paces/tree/main/paces/core/time_evolution.py#L124-L910"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#paces.core.time_evolution.TimeEvolutionFramework" title="Link to this definition">#</a></dt>
+<dd><p>Abstract base class of time-evolution that takes a concretized Hamiltonian/Observables as input.</p>
+<p>This class is used to actually run the time evolution based on the specific model that has
+been constructed in the subclasses of HamiltonianFramework and ObservablesFramework.</p>
+<p>The user should only need to add model-specific initial-state
+and initial basis-set generation functions to subclasses of this class.
+See the ../../paces/models folder for examples of existing models.</p>
+<p>Framework to perform time evolution based on a given Hamiltonian Object.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>hamobj</strong> – The instance of a subclass of HamiltonianFramework to be worked on.</p></li>
+<li><p><strong>ObsObj</strong> – The (non-instantiated) subclass of ObservablesFramework to use for observables.</p></li>
+<li><p><strong>obs_list</strong> (<em>list</em><em> of </em><em>str</em>) – List of observables to computed. Will be passed on to ObsObj.</p></li>
+<li><p><strong>dirname</strong> (<em>str</em>) – Path of directory where the calculation files shall be stored.</p></li>
+<li><p><strong>expm_params</strong> – ExpmParams instance containing parameters for the matrix exponential.</p></li>
+<li><p><strong>te_params</strong> – TimeEvoParams instance containing basic time evolution parameters.</p></li>
+<li><p><strong>params_file</strong> (<em>str</em><em> or </em><em>None</em>) – The parameters will be saved under this file name.
+If None, the name is automatically constructed and identified with a timestamp.
+Default: None.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="paces.core.time_evolution.TimeEvolutionFramework.initialize_params_file">
+<span class="sig-name descname"><span class="pre">initialize_params_file</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference external" href="https://github.com/rkevk/paces/tree/main/paces/core/time_evolution.py#L217-L248"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#paces.core.time_evolution.TimeEvolutionFramework.initialize_params_file" title="Link to this definition">#</a></dt>
+<dd><p>Write the header and main parameters to the central parameter file.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="paces.core.time_evolution.TimeEvolutionFramework.write_current_params_to_file">
+<span class="sig-name descname"><span class="pre">write_current_params_to_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">frame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start_time</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/rkevk/paces/tree/main/paces/core/time_evolution.py#L251-L264"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#paces.core.time_evolution.TimeEvolutionFramework.write_current_params_to_file" title="Link to this definition">#</a></dt>
+<dd><p>Helper function to write function parameters to the central parameter file.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="paces.core.time_evolution.TimeEvolutionFramework.load_basis_from_file">
+<span class="sig-name descname"><span class="pre">load_basis_from_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">loadfile</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/rkevk/paces/tree/main/paces/core/time_evolution.py#L271-L287"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#paces.core.time_evolution.TimeEvolutionFramework.load_basis_from_file" title="Link to this definition">#</a></dt>
+<dd><p>Load a basis set from file and set as the current basis set.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="paces.core.time_evolution.TimeEvolutionFramework.grow_optimal_basis">
+<span class="sig-name descname"><span class="pre">grow_optimal_basis</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n_max</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">numpy.inf</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fillfac</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/rkevk/paces/tree/main/paces/core/time_evolution.py#L290-L319"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#paces.core.time_evolution.TimeEvolutionFramework.grow_optimal_basis" title="Link to this definition">#</a></dt>
+<dd><p>Enlarge a small initial basis set by repeatedly applying the Hamiltonian.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>n_max</strong> (<em>int</em>) – The maximum number of enlargement iterations to perform. Default: infinity.</p></li>
+<li><p><strong>fillfac</strong> (<em>float</em>) – The proportion of maxstates to use up. Default: 1.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="paces.core.time_evolution.TimeEvolutionFramework.create_initial_vector">
+<span class="sig-name descname"><span class="pre">create_initial_vector</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">vector_coeffs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vector_coo</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">auto_normalize</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/rkevk/paces/tree/main/paces/core/time_evolution.py#L325-L359"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#paces.core.time_evolution.TimeEvolutionFramework.create_initial_vector" title="Link to this definition">#</a></dt>
+<dd><p>Take coeffs and coos of vector, look up the positions in whoami and create the state vector.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="paces.core.time_evolution.TimeEvolutionFramework.create_matrices">
+<span class="sig-name descname"><span class="pre">create_matrices</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">diag_params</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">coo_dict</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/rkevk/paces/tree/main/paces/core/time_evolution.py#L365-L372"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#paces.core.time_evolution.TimeEvolutionFramework.create_matrices" title="Link to this definition">#</a></dt>
+<dd><p>Generate sparse matrices from diagonal values and coo_dict</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="paces.core.time_evolution.TimeEvolutionFramework.create_ham_mat">
+<span class="sig-name descname"><span class="pre">create_ham_mat</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference external" href="https://github.com/rkevk/paces/tree/main/paces/core/time_evolution.py#L375-L379"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#paces.core.time_evolution.TimeEvolutionFramework.create_ham_mat" title="Link to this definition">#</a></dt>
+<dd><p>Construct the sparse total Hamiltonian matrix and set to self.ham_mat.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="paces.core.time_evolution.TimeEvolutionFramework.total_ham">
+<span class="sig-name descname"><span class="pre">total_ham</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">vector</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_ham_mat</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/rkevk/paces/tree/main/paces/core/time_evolution.py#L382-L400"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#paces.core.time_evolution.TimeEvolutionFramework.total_ham" title="Link to this definition">#</a></dt>
+<dd><p>Apply the total Hamiltonian to a vector.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>vector</strong> (<em>ndarray</em>) – vector that the Hamiltonian will be applied to.</p></li>
+<li><p><strong>use_ham_mat</strong> (<em>bool</em>) – If True, use the explicit total Hamiltonian matrix,
+else use only the constituent matrices and diagonal values. Default: False.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The result of applying H to the vector.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>1D ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="paces.core.time_evolution.TimeEvolutionFramework.total_ham_ones">
+<span class="sig-name descname"><span class="pre">total_ham_ones</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">use_ham_mat</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/rkevk/paces/tree/main/paces/core/time_evolution.py#L403-L420"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#paces.core.time_evolution.TimeEvolutionFramework.total_ham_ones" title="Link to this definition">#</a></dt>
+<dd><p>Apply the total Hamiltonian to a vector of all ones.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>use_ham_mat</strong> (<em>bool</em>) – If True, use the explicit total Hamiltonian matrix,
+else use only the constituent matrices and diagonal values. Default: False.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The result of applying H to the vector of all ones.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>1D ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="paces.core.time_evolution.TimeEvolutionFramework.generate_timeline">
+<span class="sig-name descname"><span class="pre">generate_timeline</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">t_array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">coeff_save_obj</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/rkevk/paces/tree/main/paces/core/time_evolution.py#L426-L458"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#paces.core.time_evolution.TimeEvolutionFramework.generate_timeline" title="Link to this definition">#</a></dt>
+<dd><p>Evolve the states along the time-points given in t_array and compute and save observables.</p>
+<p>In order for this to work, the hamobj object must be initialized
+(which is a required argument for the initialization of the TimeEvolution object),
+and there must be an initial basis (see, e.g., the initial basis set generation functions)
+and an initial vector (via te.create_initial_vector(args) or by loading from file).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>t_array</strong> (<em>ndarray</em><em> of </em><em>floats</em>) – The points in time.
+The initial state is assumed to correspond to the first time value in t_array.
+Then this function evolves step-by-step until the last value in t_array is reached.</p></li>
+<li><p><strong>coeff_save_obj</strong> – Instance of CoeffSaveParams (information on when to save coefficients).</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="paces.core.time_evolution.TimeEvolutionFramework.coherence_weighting_func">
+<span class="sig-name descname"><span class="pre">coherence_weighting_func</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">vector</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tau</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/rkevk/paces/tree/main/paces/core/time_evolution.py#L464-L469"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#paces.core.time_evolution.TimeEvolutionFramework.coherence_weighting_func" title="Link to this definition">#</a></dt>
+<dd><p>Determine the contribution of each basis state to the coherence it provides after time tau.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="paces.core.time_evolution.TimeEvolutionFramework.norm_weighting_func">
+<span class="sig-name descname"><span class="pre">norm_weighting_func</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">vector</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tau</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/rkevk/paces/tree/main/paces/core/time_evolution.py#L472-L476"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#paces.core.time_evolution.TimeEvolutionFramework.norm_weighting_func" title="Link to this definition">#</a></dt>
+<dd><p>Determine the contribution of each basis state to the squared norm of (1 - i δt H)|psi&gt;.</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="TimeEvoParams.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">paces.core.time_evolution.TimeEvoParams</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="../../models/index.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">paces.models</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item"><div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#paces.core.time_evolution.TimeEvolutionFramework"><code class="docutils literal notranslate"><span class="pre">paces.core.time_evolution.TimeEvolutionFramework</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#paces.core.time_evolution.TimeEvolutionFramework.initialize_params_file"><code class="docutils literal notranslate"><span class="pre">paces.core.time_evolution.TimeEvolutionFramework.initialize_params_file()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#paces.core.time_evolution.TimeEvolutionFramework.write_current_params_to_file"><code class="docutils literal notranslate"><span class="pre">paces.core.time_evolution.TimeEvolutionFramework.write_current_params_to_file()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#paces.core.time_evolution.TimeEvolutionFramework.load_basis_from_file"><code class="docutils literal notranslate"><span class="pre">paces.core.time_evolution.TimeEvolutionFramework.load_basis_from_file()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#paces.core.time_evolution.TimeEvolutionFramework.grow_optimal_basis"><code class="docutils literal notranslate"><span class="pre">paces.core.time_evolution.TimeEvolutionFramework.grow_optimal_basis()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#paces.core.time_evolution.TimeEvolutionFramework.create_initial_vector"><code class="docutils literal notranslate"><span class="pre">paces.core.time_evolution.TimeEvolutionFramework.create_initial_vector()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#paces.core.time_evolution.TimeEvolutionFramework.create_matrices"><code class="docutils literal notranslate"><span class="pre">paces.core.time_evolution.TimeEvolutionFramework.create_matrices()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#paces.core.time_evolution.TimeEvolutionFramework.create_ham_mat"><code class="docutils literal notranslate"><span class="pre">paces.core.time_evolution.TimeEvolutionFramework.create_ham_mat()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#paces.core.time_evolution.TimeEvolutionFramework.total_ham"><code class="docutils literal notranslate"><span class="pre">paces.core.time_evolution.TimeEvolutionFramework.total_ham()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#paces.core.time_evolution.TimeEvolutionFramework.total_ham_ones"><code class="docutils literal notranslate"><span class="pre">paces.core.time_evolution.TimeEvolutionFramework.total_ham_ones()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#paces.core.time_evolution.TimeEvolutionFramework.generate_timeline"><code class="docutils literal notranslate"><span class="pre">paces.core.time_evolution.TimeEvolutionFramework.generate_timeline()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#paces.core.time_evolution.TimeEvolutionFramework.coherence_weighting_func"><code class="docutils literal notranslate"><span class="pre">paces.core.time_evolution.TimeEvolutionFramework.coherence_weighting_func()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#paces.core.time_evolution.TimeEvolutionFramework.norm_weighting_func"><code class="docutils literal notranslate"><span class="pre">paces.core.time_evolution.TimeEvolutionFramework.norm_weighting_func()</span></code></a></li>
+</ul>
+</li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By R. Kevin Kessing
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2026, R. Kevin Kessing.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../../../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
+<script defer src="../../../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>
